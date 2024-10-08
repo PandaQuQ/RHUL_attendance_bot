@@ -121,17 +121,18 @@ def initialize_webdriver(user_data_dir):
     Returns:
         webdriver.Chrome: An instance of Chrome WebDriver.
     """
+    # Configure Chrome options
     chrome_options = Options()
     chrome_options.add_argument(f"user-data-dir={user_data_dir}")
     chrome_options.add_argument("--log-level=3")
-    # Hide DevTools listening information
-    chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    # Uncomment the following line to run Chrome in headless mode
-    # chrome_options.add_argument("--headless")
+    chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])  # Hide DevTools listening log
 
     try:
-        # Automatically download and install the appropriate ChromeDriver
-        driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
+        # Use Service to manage ChromeDriver installation and execution
+        service = Service(ChromeDriverManager().install())  # Automatically manage the driver
+
+        # Ensure webdriver.Chrome only receives 'service' and 'options'
+        driver = webdriver.Chrome(service=service, options=chrome_options)  # Correct instantiation
         logger.info("Chrome WebDriver initialized successfully.")
         return driver
     except Exception as e:
@@ -185,6 +186,18 @@ def automated_function(next_event_time, next_event_name, upcoming_events):
 
         if attending_aria_hidden == "false":
             logger.info("Attendance has already been marked. Returning without further action.")
+            # 获取下一个事件的名称和时间
+            next_index = upcoming_events.index((next_event_time, next_event_name))
+            if next_index < len(upcoming_events):
+                next_event_time, next_event_name = upcoming_events[next_index]
+                local_next_event_time = next_event_time.astimezone()
+
+                # 显示下一个事件的信息，保持颜色格式
+                logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow] ")
+                logger.info(f"scheduled for [bold cyan]{local_next_event_time}[/bold cyan]")
+            else:
+                logger.info("No further upcoming events.")
+            \
             driver.quit()
             return True
 
