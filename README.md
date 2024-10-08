@@ -1,7 +1,7 @@
 
 # RHUL Attendance Bot
 
-[中文](https://github.com/PandaQuQ/RHUL_attendance_bot/README_CN.md)
+[中文](https://github.com/PandaQuQ/RHUL_attendance_bot/blob/main/README_CN.md)
 
 ## Overview
 

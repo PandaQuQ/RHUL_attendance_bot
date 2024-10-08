@@ -1,7 +1,7 @@
 
 # RHUL 签到机器人
 
-[English](https://github.com/PandaQuQ/RHUL_attendance_bot/README.md)
+[English](https://github.com/PandaQuQ/RHUL_attendance_bot/blob/main/README.md)
 
 ## 概述
 
