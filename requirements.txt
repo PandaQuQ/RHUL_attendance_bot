@@ -1,0 +1,5 @@
+selenium
+rich
+ics
+keyboard
+webdriver-manager
