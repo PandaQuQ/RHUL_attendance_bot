@@ -3,4 +3,3 @@ webdriver-manager
 pynput
 ics
 rich
-tkinter  # although tkinter is usually included with Python installations, mention for clarity
