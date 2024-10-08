@@ -1,0 +1,8 @@
+# Ignore Chrome user data directory
+chrome_user_data/
+
+# Ignore ics directory
+ics/*
+
+# Ignore .log file
+*.log
