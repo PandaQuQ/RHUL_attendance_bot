@@ -159,24 +159,29 @@ def automated_function(event_time, event_name, upcoming_events):
         attending_aria_hidden = attending_div.get_attribute("aria-hidden")
 
         if attending_aria_hidden == "false":
-            logger.info("Attendance has already been marked. Returning without further action.")
+            current_time = datetime.now(timezone.utc)
 
-            # 新增部分：记录下一个事件
-            # Remove the current event from upcoming_events if it's still there
-            if (event_time, event_name) in upcoming_events:
-                upcoming_events.remove((event_time, event_name))
-
-            # Check if there are more upcoming events
-            if upcoming_events:
-                next_event_time, next_event_name = upcoming_events[0]
-                local_next_event_time = next_event_time.astimezone()
-                logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow] scheduled for [bold cyan]{local_next_event_time.strftime('%Y-%m-%d %H:%M:%S')}[/bold cyan]")
+            if current_time < event_time:
+                # 当前时间早于事件时间，不更新事件列表
+                logger.info("Attendance has already been marked, but event time has not occurred yet. Will not update next event.")
+                driver.quit()
+                return True
             else:
-                logger.info("No further upcoming events.")
-            # 新增部分结束
+                # 当前时间晚于事件时间，移除事件并记录下一个事件
+                logger.info("Attendance has already been marked. Removing event and logging next event.")
 
-            driver.quit()
-            return True
+                if (event_time, event_name) in upcoming_events:
+                    upcoming_events.remove((event_time, event_name))
+
+                if upcoming_events:
+                    next_event_time, next_event_name = upcoming_events[0]
+                    local_next_event_time = next_event_time.astimezone()
+                    logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow] scheduled for [bold cyan]{local_next_event_time.strftime('%Y-%m-%d %H:%M:%S')}[/bold cyan]")
+                else:
+                    logger.info("No further upcoming events.")
+
+                driver.quit()
+                return True
 
         if click_button_if_visible(driver, "pbid-buttonFoundHappeningNowButtonsTwoHere") or \
            click_button_if_visible(driver, "pbid-buttonFoundHappeningNowButtonsOneHere"):
@@ -192,18 +197,16 @@ def automated_function(event_time, event_name, upcoming_events):
             with counter_lock:
                 attendance_success_count += 1
 
-            # Remove the current event from upcoming_events
+            # 移除当前事件并记录下一个事件
             if (event_time, event_name) in upcoming_events:
                 upcoming_events.remove((event_time, event_name))
 
-            # 新增部分：记录下一个事件
             if upcoming_events:
                 next_event_time, next_event_name = upcoming_events[0]
                 local_next_event_time = next_event_time.astimezone()
                 logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow] scheduled for [bold cyan]{local_next_event_time.strftime('%Y-%m-%d %H:%M:%S')}[/bold cyan]")
             else:
                 logger.info("No further upcoming events.")
-            # 新增部分结束
 
             driver.quit()
             return True
@@ -216,6 +219,7 @@ def automated_function(event_time, event_name, upcoming_events):
         logger.error(f"Failed during attendance marking: {e}")
         driver.quit()
         return False
+
 
 def load_calendar(file_path):
     try:
