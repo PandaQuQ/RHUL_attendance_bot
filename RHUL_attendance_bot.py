@@ -178,8 +178,8 @@ def automated_function(event_time, event_name, upcoming_events):
             else:
                 logger.info("No further upcoming events.")
 
-                driver.quit()
-                return True
+            driver.quit()
+            return True
 
         if click_button_if_visible(driver, "pbid-buttonFoundHappeningNowButtonsTwoHere") or \
            click_button_if_visible(driver, "pbid-buttonFoundHappeningNowButtonsOneHere"):
