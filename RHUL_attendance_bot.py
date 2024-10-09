@@ -1,16 +1,18 @@
 import os
-import random
-import time
+import sys
+import subprocess
 import threading
+import time
+import random
 import logging
 from datetime import datetime, timedelta, timezone
 from ics import Calendar
 from rich.console import Console
 from rich.panel import Panel
-from rich import box
 from rich.live import Live
 from rich.table import Table
 from rich.align import Align
+from rich import box
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -18,10 +20,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-from pynput import keyboard  # Replacing keyboard with pynput for keypress detection
-import tkinter as tk
-from tkinter import messagebox
-import webbrowser
+from pynput import keyboard
 from collections import deque
 
 # Initialize Rich console
@@ -42,21 +41,31 @@ logger.addHandler(file_handler)
 log_buffer = deque(maxlen=5)
 log_buffer_lock = threading.Lock()
 
-# Custom BufferLogHandler to store logs in deque
+# Custom BufferLogHandler to store logs in deque and format with Rich
 class BufferLogHandler(logging.Handler):
-    def __init__(self, buffer, buffer_lock):
+    def __init__(self, buffer, buffer_lock, console):
         super().__init__()
         self.buffer = buffer
         self.buffer_lock = buffer_lock
+        self.console = console
 
     def emit(self, record):
         log_entry = self.format(record)
         with self.buffer_lock:
+            # Add color to log levels
+            if record.levelno == logging.INFO:
+                log_entry = f"[green]{log_entry}[/green]"
+            elif record.levelno == logging.WARNING:
+                log_entry = f"[yellow]{log_entry}[/yellow]"
+            elif record.levelno == logging.ERROR:
+                log_entry = f"[red]{log_entry}[/red]"
+            elif record.levelno == logging.DEBUG:
+                log_entry = f"[blue]{log_entry}[/blue]"
             self.buffer.append(log_entry)
 
 # Configure BufferLogHandler to display message content without timestamps and levels
-buffer_handler = BufferLogHandler(log_buffer, log_buffer_lock)
-buffer_handler.setLevel(logging.INFO)
+buffer_handler = BufferLogHandler(log_buffer, log_buffer_lock, console)
+buffer_handler.setLevel(logging.DEBUG)
 buffer_formatter = logging.Formatter('%(message)s')
 buffer_handler.setFormatter(buffer_formatter)
 logger.addHandler(buffer_handler)
@@ -69,18 +78,14 @@ attendance_success_count = 0
 counter_lock = threading.Lock()
 
 def verify_login(driver, expected_url, max_wait_minutes=30):
-    """
-    Verifies if the script is logged in by checking the current URL.
-    If not logged in, logs "Need to login" and checks every 10 seconds until logged in or max wait time is reached.
-    """
-    initial_wait = 3  # seconds
-    periodic_wait = 10  # seconds
+    initial_wait = 3
+    periodic_wait = 10
     max_wait_seconds = max_wait_minutes * 60
     elapsed_time = 0
 
     time.sleep(initial_wait)
-
     current_url = driver.current_url
+
     if current_url == expected_url:
         logger.info("Already logged in.")
         return True
@@ -95,20 +100,16 @@ def verify_login(driver, expected_url, max_wait_minutes=30):
             logger.info("Login detected.")
             return True
         else:
-            logger.info("Need to login.")
+            logger.info("Waiting for login...")
     
     logger.error(f"Login not detected after {max_wait_minutes} minutes.")
     return False
 
 def initialize_webdriver(user_data_dir):
-    """
-    Initializes the Chrome WebDriver using webdriver_manager.
-    Automatically installs the appropriate ChromeDriver version if not present.
-    """
     chrome_options = Options()
     chrome_options.add_argument(f"user-data-dir={user_data_dir}")
     chrome_options.add_argument("--log-level=3")
-    chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])  # Hide DevTools listening log
+    chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
     try:
         service = Service(ChromeDriverManager().install())
@@ -120,7 +121,6 @@ def initialize_webdriver(user_data_dir):
         return None
 
 def click_button_if_visible(driver, button_id):
-    """If the button is clickable, click it and return True; otherwise, return False."""
     try:
         button = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, button_id)))
         button.click()
@@ -142,6 +142,7 @@ def automated_function(event_time, event_name, upcoming_events):
         return False
 
     try:
+        # Use your actual attendance URL
         driver.get("https://generalssb-prod.ec.royalholloway.ac.uk/BannerExtensibility/customPage/page/RHUL_Attendance_Student")
         logger.info("Opened attendance page.")
 
@@ -156,42 +157,54 @@ def automated_function(event_time, event_name, upcoming_events):
 
         attending_div = driver.find_element(By.ID, "pbid-blockFoundHappeningNowAttending")
         attending_aria_hidden = attending_div.get_attribute("aria-hidden")
-        logger.debug(f"'pbid-blockFoundHappeningNowAttending' aria-hidden: {attending_aria_hidden}")
 
         if attending_aria_hidden == "false":
             logger.info("Attendance has already been marked. Returning without further action.")
-            # 获取下一个事件的名称和时间
-            try:
-                next_index = upcoming_events.index((event_time, event_name)) + 1
-                if next_index < len(upcoming_events):
-                    next_event_time, next_event_name = upcoming_events[next_index]
-                    local_next_event_time = next_event_time.astimezone()
 
-                    # 显示下一个事件的信息，保持颜色格式
-                    logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow]")
-                    logger.info(f"scheduled for [bold cyan]{local_next_event_time}[/bold cyan]")
-                else:
-                    logger.info("No further upcoming events.")
-            except ValueError:
-                logger.warning("Current event not found in upcoming_events list.")
+            # 新增部分：记录下一个事件
+            # Remove the current event from upcoming_events if it's still there
+            if (event_time, event_name) in upcoming_events:
+                upcoming_events.remove((event_time, event_name))
+
+            # Check if there are more upcoming events
+            if upcoming_events:
+                next_event_time, next_event_name = upcoming_events[0]
+                local_next_event_time = next_event_time.astimezone()
+                logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow] scheduled for [bold cyan]{local_next_event_time.strftime('%Y-%m-%d %H:%M:%S')}[/bold cyan]")
+            else:
+                logger.info("No further upcoming events.")
+            # 新增部分结束
+
             driver.quit()
             return True
 
-        if click_button_if_visible(driver, "pbid-buttonFoundHappeningNowButtonsTwoHere"):
-            pass
-        elif click_button_if_visible(driver, "pbid-buttonFoundHappeningNowButtonsOneHere"):
-            pass
+        if click_button_if_visible(driver, "pbid-buttonFoundHappeningNowButtonsTwoHere") or \
+           click_button_if_visible(driver, "pbid-buttonFoundHappeningNowButtonsOneHere"):
+            logger.info("Successfully clicked attendance button.")
         else:
             logger.warning("No clickable button found. Ending function.")
             driver.quit()
             return False
 
         WebDriverWait(driver, 10).until(EC.url_to_be(expected_url))
-
         if driver.current_url == expected_url:
             logger.info("Successfully marked attendance.")
             with counter_lock:
                 attendance_success_count += 1
+
+            # Remove the current event from upcoming_events
+            if (event_time, event_name) in upcoming_events:
+                upcoming_events.remove((event_time, event_name))
+
+            # 新增部分：记录下一个事件
+            if upcoming_events:
+                next_event_time, next_event_name = upcoming_events[0]
+                local_next_event_time = next_event_time.astimezone()
+                logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow] scheduled for [bold cyan]{local_next_event_time.strftime('%Y-%m-%d %H:%M:%S')}[/bold cyan]")
+            else:
+                logger.info("No further upcoming events.")
+            # 新增部分结束
+
             driver.quit()
             return True
         else:
@@ -201,7 +214,6 @@ def automated_function(event_time, event_name, upcoming_events):
 
     except Exception as e:
         logger.error(f"Failed during attendance marking: {e}")
-        logger.debug("Page source for debugging:\n" + driver.page_source)
         driver.quit()
         return False
 
@@ -243,25 +255,20 @@ def wait_and_trigger(upcoming_events):
         now = datetime.now(timezone.utc)
         for event_time, event_name in list(upcoming_events):
             trigger_time = calculate_trigger_time(event_time)
-            if event_time <= now <= trigger_time:
-                local_event_time = event_time.astimezone()  # 确保使用正确的时区
-                logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{event_name}[/bold yellow]")
-                logger.info(f"scheduled for [bold cyan]{local_event_time}[/bold cyan]")
+            if now >= trigger_time:
+                local_event_time = event_time.astimezone()
+                logger.info(f"[bold red]Triggering event:[/bold red] [bold yellow]{event_name}[/bold yellow] at [bold cyan]{local_event_time.strftime('%Y-%m-%d %H:%M:%S')}[/bold cyan]")
                 if automated_function(event_time, event_name, upcoming_events):
-                    upcoming_events.remove((event_time, event_name))
+                    # Event processed, continue to next
+                    pass
                 else:
-                    logger.warning("No action taken. Rechecking calendar for upcoming events.")
-                    # 不返回，让循环继续，以便重新检查
+                    logger.warning("Automated function failed. Retrying later.")
+            else:
+                sleep_duration = (trigger_time - now).total_seconds()
+                time.sleep(min(sleep_duration, 60))
         if not upcoming_events:
             logger.info("All events have been processed, exiting the script.")
             break
-
-        next_event_time, _ = upcoming_events[0]
-        trigger_time = calculate_trigger_time(next_event_time)
-        sleep_duration = (trigger_time - now).total_seconds()
-        sleep_duration = max(sleep_duration, 60)
-        logger.debug(f"Sleeping for {sleep_duration} seconds until next trigger.")
-        time.sleep(sleep_duration)
 
 def listen_for_keypress(upcoming_events):
     def on_press(key):
@@ -271,8 +278,10 @@ def listen_for_keypress(upcoming_events):
             elif key.char == ']':
                 if listener.ctrl_pressed and upcoming_events:
                     next_event_time, next_event_name = upcoming_events[0]
+                    logger.info(f"[bold magenta]Manually triggered automation for:[/bold magenta] [bold yellow]{next_event_name}[/bold yellow]")
                     if automated_function(next_event_time, next_event_name, upcoming_events):
-                        upcoming_events.remove((next_event_time, next_event_name))
+                        # Event processed, continue to next
+                        pass
                 else:
                     logger.warning("No upcoming events to process.")
         except AttributeError:
@@ -325,32 +334,43 @@ def update_display():
                 f"[bold cyan]Current Time:[/bold cyan] {current_time}",
                 f"[bold green]Runtime Duration:[/bold green] {runtime}",
                 f"[bold yellow]Attendance Success Count:[/bold yellow] {attendance}",
-                f"[bold magenta]PandaQuQ:[/bold magenta] [link=https://github.com/PandaQuQ]https://github.com/PandaQuQ[/link]"
+                f"[bold magenta]PandaQuQ:[/bold magenta] [link=https://github.com/PandaQuQ/RHUL_attendance_bot]GitHub Repo[/link]"
             )
 
-            if latest_logs:
-                log_content = "\n".join(latest_logs)
-            else:
-                log_content = "No logs available."
-
-            log_panel = Panel(log_content, title="Latest Logs", border_style="green", padding=(1, 2))
+            log_content = "\n".join(latest_logs) if latest_logs else "No logs available."
+            log_panel = Panel(log_content, title="[bold green]Latest Logs[/bold green]", border_style="green", padding=(1, 2))
 
             shortcut_instructions = Align.center(
-                "Press [yellow][[/yellow] and [yellow]][/yellow] together to trigger automation.",
+                "Press [yellow][[/yellow] and [yellow]][/yellow] together to trigger automation.\nDo it for the first time for login.",
                 vertical="middle"
             )
-            first_instructions = Align.center(
-                "Do it for the first time for login",
-                vertical="middle"
-            )
+
             layout = Table.grid(expand=True)
             layout.add_row(info_table)
             layout.add_row(log_panel)
             layout.add_row(shortcut_instructions)
-            layout.add_row(first_instructions)  # Add the 1st login instruction as a new row
 
             live.update(layout)
             time.sleep(1)
+
+def check_for_updates():
+    try:
+        local_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
+        remote_commit = subprocess.check_output(['git', 'ls-remote', 'origin', 'HEAD']).decode().split()[0]
+        if local_commit != remote_commit:
+            logger.info("New update detected.")
+            user_input = input("A new update is available. Do you want to update now? (y/n): ").strip().lower()
+            if user_input == 'y':
+                logger.info("Updating the script...")
+                subprocess.check_call(['git', 'pull'])
+                logger.info("Update successful. Restarting the script...")
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+            else:
+                logger.info("Skipping update. Continuing with the current version.")
+        else:
+            logger.info("No updates found. Continuing execution.")
+    except Exception as e:
+        logger.error(f"Failed to check for updates: {e}")
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -358,6 +378,8 @@ def main():
     os.makedirs(user_data_dir, exist_ok=True)
 
     try:
+        check_for_updates()
+
         ics_file = get_single_ics_file()
         if not ics_file:
             logger.info("Program terminated due to missing or multiple .ics files.")
@@ -373,16 +395,14 @@ def main():
             logger.info("No upcoming events.")
             return
 
-        next_event_time, next_event_name = upcoming_events[0]
-        local_next_event_time = next_event_time.astimezone()
-        logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow]")
-        logger.info(f"scheduled for [bold cyan]{local_next_event_time}[/bold cyan]")
-        
-        # Start the display and keypress listener in separate threads
+        if upcoming_events:
+            next_event_time, next_event_name = upcoming_events[0]
+            local_next_event_time = next_event_time.astimezone()
+            logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow] scheduled for [bold cyan]{local_next_event_time.strftime('%Y-%m-%d %H:%M:%S')}[/bold cyan]")
+
         threading.Thread(target=update_display, daemon=True).start()
         threading.Thread(target=listen_for_keypress, args=(upcoming_events,), daemon=True).start()
 
-        # Start waiting and triggering events
         wait_and_trigger(upcoming_events)
     except KeyboardInterrupt:
         logger.info("Script terminated by user.")
