@@ -3,8 +3,6 @@ import random
 import time
 import threading
 import logging
-import platform
-import sys
 from datetime import datetime, timedelta, timezone
 from ics import Calendar
 from rich.console import Console
@@ -132,7 +130,7 @@ def click_button_if_visible(driver, button_id):
         logger.error(f"Error clicking button {button_id}: {e}")
         return False
 
-def automated_function(next_event_time, next_event_name, upcoming_events):
+def automated_function(event_time, event_name, upcoming_events):
     global attendance_success_count
     script_dir = os.path.dirname(os.path.abspath(__file__))
     user_data_dir = os.path.join(script_dir, 'chrome_user_data')
@@ -163,17 +161,19 @@ def automated_function(next_event_time, next_event_name, upcoming_events):
         if attending_aria_hidden == "false":
             logger.info("Attendance has already been marked. Returning without further action.")
             # 获取下一个事件的名称和时间
-            next_index = upcoming_events.index((next_event_time, next_event_name))
-            if next_index < len(upcoming_events):
-                next_event_time, next_event_name = upcoming_events[next_index]
-                local_next_event_time = next_event_time.astimezone()
+            try:
+                next_index = upcoming_events.index((event_time, event_name)) + 1
+                if next_index < len(upcoming_events):
+                    next_event_time, next_event_name = upcoming_events[next_index]
+                    local_next_event_time = next_event_time.astimezone()
 
-                # 显示下一个事件的信息，保持颜色格式
-                logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow] ")
-                logger.info(f"scheduled for [bold cyan]{local_next_event_time}[/bold cyan]")
-            else:
-                logger.info("No further upcoming events.")
-            \
+                    # 显示下一个事件的信息，保持颜色格式
+                    logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow]")
+                    logger.info(f"scheduled for [bold cyan]{local_next_event_time}[/bold cyan]")
+                else:
+                    logger.info("No further upcoming events.")
+            except ValueError:
+                logger.warning("Current event not found in upcoming_events list.")
             driver.quit()
             return True
 
@@ -201,13 +201,13 @@ def automated_function(next_event_time, next_event_name, upcoming_events):
 
     except Exception as e:
         logger.error(f"Failed during attendance marking: {e}")
-        logger.debug("Page source for debugging:\\n" + driver.page_source)
+        logger.debug("Page source for debugging:\n" + driver.page_source)
         driver.quit()
         return False
 
 def load_calendar(file_path):
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             calendar = Calendar(f.read())
         return calendar
     except FileNotFoundError:
@@ -223,6 +223,8 @@ def get_upcoming_events(calendar):
     for event in calendar.events:
         event_start = event.begin.datetime
         event_name = event.name
+        if event_start.tzinfo is None:
+            event_start = event_start.replace(tzinfo=timezone.utc)
         if event_start > now and 'Optional Attendance' not in event_name:
             upcoming_events.append((event_start, event_name))
     upcoming_events.sort(key=lambda x: x[0])
@@ -242,14 +244,14 @@ def wait_and_trigger(upcoming_events):
         for event_time, event_name in list(upcoming_events):
             trigger_time = calculate_trigger_time(event_time)
             if event_time <= now <= trigger_time:
-                logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow] ")
-                logger.info(f"scheduled for [bold cyan]{local_next_event_time}[/bold cyan]")
+                local_event_time = event_time.astimezone()  # 确保使用正确的时区
+                logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{event_name}[/bold yellow]")
+                logger.info(f"scheduled for [bold cyan]{local_event_time}[/bold cyan]")
                 if automated_function(event_time, event_name, upcoming_events):
                     upcoming_events.remove((event_time, event_name))
                 else:
                     logger.warning("No action taken. Rechecking calendar for upcoming events.")
-                    return
-
+                    # 不返回，让循环继续，以便重新检查
         if not upcoming_events:
             logger.info("All events have been processed, exiting the script.")
             break
@@ -258,6 +260,7 @@ def wait_and_trigger(upcoming_events):
         trigger_time = calculate_trigger_time(next_event_time)
         sleep_duration = (trigger_time - now).total_seconds()
         sleep_duration = max(sleep_duration, 60)
+        logger.debug(f"Sleeping for {sleep_duration} seconds until next trigger.")
         time.sleep(sleep_duration)
 
 def listen_for_keypress(upcoming_events):
@@ -268,15 +271,19 @@ def listen_for_keypress(upcoming_events):
             elif key.char == ']':
                 if listener.ctrl_pressed and upcoming_events:
                     next_event_time, next_event_name = upcoming_events[0]
-                    automated_function(next_event_time, next_event_name, upcoming_events)
+                    if automated_function(next_event_time, next_event_name, upcoming_events):
+                        upcoming_events.remove((next_event_time, next_event_name))
                 else:
                     logger.warning("No upcoming events to process.")
         except AttributeError:
             pass
 
     def on_release(key):
-        if key.char == '[':
-            listener.ctrl_pressed = False
+        try:
+            if key.char == '[':
+                listener.ctrl_pressed = False
+        except AttributeError:
+            pass
 
     with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
         listener.ctrl_pressed = False
@@ -368,11 +375,14 @@ def main():
 
         next_event_time, next_event_name = upcoming_events[0]
         local_next_event_time = next_event_time.astimezone()
-        logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow] ")
+        logger.info(f"[bold red]Next event:[/bold red] [bold yellow]{next_event_name}[/bold yellow]")
         logger.info(f"scheduled for [bold cyan]{local_next_event_time}[/bold cyan]")
+        
+        # Start the display and keypress listener in separate threads
         threading.Thread(target=update_display, daemon=True).start()
         threading.Thread(target=listen_for_keypress, args=(upcoming_events,), daemon=True).start()
 
+        # Start waiting and triggering events
         wait_and_trigger(upcoming_events)
     except KeyboardInterrupt:
         logger.info("Script terminated by user.")
