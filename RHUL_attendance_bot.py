@@ -221,15 +221,19 @@ def main():
             logger.error(f"Failed to initialize Chrome WebDriver: {e}")
             return None
 
-    def click_button_if_visible(driver, button_id):
-        try:
-            button = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, button_id)))
-            button.click()
-            logger.info(f"Clicked button: {button_id}")
-            return True
-        except Exception as e:
-            logger.error(f"Error clicking button {button_id}: {e}")
-            return False
+    def click_button_if_visible(driver, button_ids):
+        for button_id in button_ids:
+            try:
+                button = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, button_id)))
+                button.click()
+                logger.info(f"Clicked button: {button_id}")
+                return True
+            except Exception as e:
+                logger.error(f"Error clicking button {button_id}: {e}")
+        logger.warning("No clickable button found.")
+        return False
+
+
 
     def automated_function(event_time, event_name, upcoming_events):
         global attendance_success_count
@@ -274,8 +278,7 @@ def main():
 
                 return True
 
-            if click_button_if_visible(driver, "pbid-buttonFoundHappeningNowButtonsTwoHere") or \
-               click_button_if_visible(driver, "pbid-buttonFoundHappeningNowButtonsOneHere"):
+            if click_button_if_visible(driver, ["pbid-buttonFoundHappeningNowButtonsOneHere", "pbid-buttonFoundHappeningNowButtonsTwoHere"]):
                 logger.info("Successfully clicked attendance button.")
             else:
                 logger.warning("No clickable button found. Ending function.")
