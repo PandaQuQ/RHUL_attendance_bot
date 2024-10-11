@@ -1,6 +1,7 @@
 # RHUL 自动签到脚本
 [English](https://github.com/PandaQuQ/RHUL_attendance_bot/blob/main/README.md)
 ---
+
 RHUL 自动签到脚本通过使用网页自动化来为 Royal Holloway 学生自动签到。该脚本根据日历事件检查并触发签到操作，并使用 Rich 库进行实时日志记录，提供更好的可视化体验。
 
 ## 功能
@@ -82,7 +83,7 @@ RHUL 自动签到脚本通过使用网页自动化来为 Royal Holloway 学生�
 
 ## 许可证
 
-本项目采用 MIT 许可证。有关详细信息，请参阅 [LICENSE](LICENSE) 文件。
+本项目采用 MIT 许可证并附加额外条款。有关详细信息，请参阅 [LICENSE](LICENSE) 文件。
 
 ## 鸣谢
 
