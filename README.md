@@ -3,7 +3,7 @@
 ---
 
 The RHUL Attendance Bot automates attendance marking for Royal Holloway students by using web automation. The script checks your calendar events, triggers attendance based on specified conditions, and provides real-time logging using Rich library for better visualization.
-
+![alt text]({8BA55B13-C622-4EB4-93F2-964AF83C7A9E}.png)
 ## Features
 
 - **Automated Attendance**: Automatically opens the attendance page and marks your attendance based on your calendar events.
