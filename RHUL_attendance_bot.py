@@ -2,15 +2,21 @@ import os
 import sys
 import subprocess
 import logging
+import threading
+import time
+import random
+import shutil
+from datetime import datetime, timedelta, timezone
+from collections import deque
+import zoneinfo  # For Python 3.9 and above
+import ntplib  # Used to check system time synchronization
 
 # Create a logger
 logger = logging.getLogger("attendance_bot")
 logger.setLevel(logging.DEBUG)
 
 def check_virtual_environment():
-    if hasattr(sys, 'real_prefix'):
-        logger.info("Running inside a virtual environment.")
-    elif hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix:
+    if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
         logger.info("Running inside a virtual environment.")
     else:
         logger.error("You are not running inside a Python virtual environment.")
@@ -44,49 +50,27 @@ def check_dependencies():
     else:
         logger.info("All dependencies are installed.")
 
-def check_git_installed():
-    import shutil
-    if shutil.which('git') is None:
-        logger.error("Git is not installed or not found in PATH.")
-        logger.error("Please install Git before running this script.")
-        sys.exit(1)
-    else:
-        logger.info("Git is installed.")
-
 def check_chrome_installed():
-    import platform
-    chrome_paths = []
-    if sys.platform == 'win32':
-        # Windows
-        chrome_paths = [
-            os.path.join(os.environ.get('PROGRAMFILES', ''), 'Google\\Chrome\\Application\\chrome.exe'),
-            os.path.join(os.environ.get('PROGRAMFILES(X86)', ''), 'Google\\Chrome\\Application\\chrome.exe'),
-            os.path.expandvars(r'%LOCALAPPDATA%\\Google\\Chrome\\Application\\chrome.exe')
-        ]
-    elif sys.platform == 'darwin':
-        # macOS
-        chrome_paths = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
-    elif sys.platform.startswith('linux'):
-        # Linux
-        chrome_paths = ['/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium']
-    else:
-        logger.error("Unsupported platform.")
-        logger.error("Unsupported platform.")
+    from selenium import webdriver
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
+    try:
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless")  # Run in headless mode for testing
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+        driver.quit()
+        logger.info("Chrome and ChromeDriver are installed and working.")
+    except Exception as e:
+        logger.error(f"Failed to initialize Chrome WebDriver: {e}")
+        logger.error("Please ensure that Google Chrome is installed and accessible.")
         sys.exit(1)
-    for path in chrome_paths:
-        if os.path.exists(path):
-            logger.info("Chrome is installed.")
-            return True
-    logger.error("Chrome is not installed or not found in default locations.")
-    logger.error("Please install Google Chrome before running this script.")
-    sys.exit(1)
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
     check_virtual_environment()
     check_dependencies()
-    check_git_installed()
     check_chrome_installed()
     
     # Now proceed to import the rest of the modules
@@ -159,14 +143,6 @@ def main():
     buffer_formatter = logging.Formatter('%(message)s')
     buffer_handler.setFormatter(buffer_formatter)
     logger.addHandler(buffer_handler)
-
-    # Remove console handler to prevent output to stdout
-    # This prevents log messages from interfering with the Rich Live display
-    # console_handler = logging.StreamHandler()
-    # console_handler.setLevel(logging.DEBUG)
-    # console_formatter = logging.Formatter('%(message)s')
-    # console_handler.setFormatter(console_formatter)
-    # logger.addHandler(console_handler)
     
     # Initialize global variables
     global start_time, attendance_success_count, counter_lock, events_lock, exit_event
@@ -211,6 +187,9 @@ def main():
         chrome_options.add_argument(f"user-data-dir={user_data_dir}")
         chrome_options.add_argument("--log-level=3")
         chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+        # Add more options if needed
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
 
         try:
             service = Service(ChromeDriverManager().install())
@@ -218,22 +197,21 @@ def main():
             logger.info("Chrome WebDriver initialized successfully.")
             return driver
         except Exception as e:
-            logger.error(f"Failed to initialize Chrome WebDriver: {e}")
+            logger.error(f"Failed to initialize Chrome WebDriver: {e}", exc_info=True)
             return None
 
     def click_button_if_visible(driver, button_ids):
         for button_id in button_ids:
             try:
                 button = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, button_id)))
-                button.click()
+                # Use JavaScript click to improve reliability
+                driver.execute_script("arguments[0].click();", button)
                 logger.info(f"Clicked button: {button_id}")
                 return True
             except Exception as e:
-                logger.error(f"Error clicking button {button_id}: {e}")
+                logger.error(f"Error clicking button {button_id}: {e}", exc_info=True)
         logger.warning("No clickable button found.")
         return False
-
-
 
     def automated_function(event_time, event_name, upcoming_events):
         global attendance_success_count
@@ -284,9 +262,12 @@ def main():
                 logger.warning("No clickable button found. Ending function.")
                 return False
 
-            WebDriverWait(driver, 10).until(EC.url_to_be(expected_url))
-            if driver.current_url == expected_url:
-                logger.info("Successfully marked attendance.")
+            # Verify that attendance has been marked
+            time.sleep(2)  # Wait for any potential page updates
+            attending_div = driver.find_element(By.ID, "pbid-blockFoundHappeningNowAttending")
+            attending_aria_hidden = attending_div.get_attribute("aria-hidden")
+            if attending_aria_hidden == "false":
+                logger.info("Attendance successfully marked.")
                 with counter_lock:
                     attendance_success_count += 1
 
@@ -295,10 +276,9 @@ def main():
                         if event[0] == event_time and event[1] == event_name:
                             upcoming_events.remove(event)
                             break
-
                 return True
             else:
-                logger.error("Failed to mark attendance, check the URL.")
+                logger.error("Failed to confirm attendance after clicking.")
                 return False
 
         except Exception as e:
@@ -329,7 +309,7 @@ def main():
             logger.error(f"Calendar file not found: {file_path}")
             return None
         except Exception as e:
-            logger.error(f"Error loading calendar: {e}")
+            logger.error(f"Error loading calendar: {e}", exc_info=True)
             return None
 
     def get_upcoming_events(calendar):
@@ -429,7 +409,7 @@ def main():
         listener.stop()
 
     def get_single_ics_file():
-        ics_folder = './ics'
+        ics_folder = os.path.join(script_dir, 'ics')
         if not os.path.exists(ics_folder):
             os.makedirs(ics_folder, exist_ok=True)
             logger.info(f"Created folder '{ics_folder}' as it did not exist.")
@@ -498,7 +478,7 @@ def main():
             else:
                 logger.info("System time is synchronized with NTP server.")
         except Exception as e:
-            logger.error(f"Failed to check system time: {e}")
+            logger.error(f"Failed to check system time: {e}", exc_info=True)
 
     def check_for_updates():
         try:

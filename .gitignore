@@ -9,3 +9,5 @@ ics/
 
 # Ignore /venv directory
 /venv
+/.venv
+/env
