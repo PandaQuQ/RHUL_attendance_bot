@@ -212,8 +212,8 @@ def main():
                 return True
             except Exception as e:
                 pass
-            if button_flag == False:
-                logger.error(f"Error clicking buttons: Can't find any button", exc_info=True)
+        if button_flag == False:
+            logger.error(f"Error clicking buttons: Can't find any button", exc_info=True)
         logger.warning("No clickable button found.")
         return False
 
