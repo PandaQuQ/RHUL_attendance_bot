@@ -201,15 +201,19 @@ def main():
             return None
 
     def click_button_if_visible(driver, button_ids):
+        button_flag = False
         for button_id in button_ids:
             try:
                 button = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, button_id)))
                 # Use JavaScript click to improve reliability
                 driver.execute_script("arguments[0].click();", button)
                 logger.info(f"Clicked button: {button_id}")
+                button_flag = True
                 return True
             except Exception as e:
-                logger.error(f"Error clicking button {button_id}: {e}", exc_info=True)
+                pass
+            if button_flag == False:
+                logger.error(f"Error clicking buttons: Can't find any button", exc_info=True)
         logger.warning("No clickable button found.")
         return False
 
@@ -255,7 +259,8 @@ def main():
                                 break
 
                 return True
-
+        
+            # 如果都找不到按钮，才报错
             if click_button_if_visible(driver, ["pbid-buttonFoundHappeningNowButtonsOneHere", "pbid-buttonFoundHappeningNowButtonsTwoHere"]):
                 logger.info("Successfully clicked attendance button.")
             else:
