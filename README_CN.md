@@ -59,29 +59,53 @@ pip install -r requirements.txt
 mkdir ics
 ```
 
+### 步骤 6：准备您的课表文件
+
+- 访问 [Royal Holloway 课表系统](https://intranet.royalholloway.ac.uk/students/study/timetable/your-timetable.aspx)
+- 选择 "Your Timetable" 并登录
+- 在左侧栏点击 "My Timetable"
+- 在 "View Timetable As" 下拉菜单中选择 `Calendar Download`
+- 点击 `View Timetable` 按钮跳转至下载页面
+- 在下载页面点击 `Android™ and others` 按钮获取下载链接
+- 在浏览器中粘贴下载链接以下载 `.ics` 文件
+- 将下载的 `.ics` 文件放置在脚本根目录的 `ics` 文件夹中
+
 ## 使用说明
 
-1. **准备您的课表文件**：
+1. **进入脚本根目录**：
 
-   - 访问 [Royal Holloway 课表系统](https://intranet.royalholloway.ac.uk/students/study/timetable/your-timetable.aspx)
-   - 选择 "Your Timetable" 并登录
-   - 在左侧栏点击 "My Timetable"
-   - 在 "View Timetable As" 下拉菜单中选择 `Calendar Download`
-   - 点击 `View Timetable` 按钮跳转至下载页面
-   - 在下载页面点击 `Android™ and others` 按钮获取下载链接
-   - 在浏览器中粘贴下载链接以下载 `.ics` 文件
-   - 将下载的 `.ics` 文件放置在脚本根目录的 `ics` 文件夹中
+   ```bash
+   cd RHUL_attendance_bot
+   ```
 
-2. **运行脚本**：
+2. **激活虚拟环境**：
 
+   #### Windows 系统：
+   ```bash
+   venv\Scripts\activate
+   ```
+
+   #### macOS/Linux 系统：
+   ```bash
+   source venv/bin/activate
+   ```
+
+3. **运行脚本**：
+
+   #### Windows 系统：
    ```bash
    python RHUL_attendance_bot.py
    ```
 
-3. **首次登录**（必需）：
+   #### macOS/Linux 系统：
+   ```bash
+   python3 RHUL_attendance_bot.py
+   ```
 
-   - 首次运行脚本时，**必须**手动触发签到以完成登录流程
-   - 按下 `[` 然后按 `]` 来手动触发登录
+   > **⚠️ 重要提示 - 首次登录必需**
+   > 
+   > 首次运行脚本时，**必须**手动触发签到以完成登录流程。
+   > 按下 `[` 然后按 `]` 来手动触发登录。
 
 4. **快捷键说明**：
 
@@ -94,6 +118,12 @@ mkdir ics
 - **虚拟环境**：强烈建议使用虚拟环境，以避免与全局包产生冲突。
 - **系统时间**：如果系统时间与 NTP 服务器不同步，脚本会提示您同步系统时钟。
 - **支持平台**：脚本支持 Windows、macOS 和 Linux 系统。
+
+> **🔐 安全提示 - 登录会话时长**
+> 
+> 根据学校的 2FA（双因素认证）策略，一次登录周期大约为 **一周左右**。
+> **强烈建议** 经常检查脚本状态以防缺勤。
+> 会话过期后可能需要手动重新登录。
 
 ## 配置
 
@@ -109,6 +139,15 @@ mkdir ics
 2. **依赖问题**：如果遇到缺少模块的错误，请确保已安装 `requirements.txt` 中列出的所有依赖项。
 3. **虚拟环境问题**：如果运行脚本时出现问题，请尝试重新设置虚拟环境并重新安装依赖项。
 
+## TODO
+
+计划为本项目添加的未来功能和改进：
+
+- 🔲 **集成 2FA**：集成双因素认证支持
+- 🔲 **读取 2FA 验证码**：自动读取 2FA 验证码
+- 🔲 **自动登录**：实现无需手动干预的完全自动登录
+- 🔲 **Discord Hook Bot**：添加 Discord Webhook 通知功能，实时推送签到状态
+
 ## 许可证
 
 本项目采用 MIT 许可证并附加额外条款。有关详细信息，请参阅 [LICENSE](LICENSE) 文件。
@@ -119,4 +158,4 @@ mkdir ics
 
 ## 联系方式
 
-如有问题或建议，请通过 [GitHub 仓库](https://github.com/PandaQuQ/RHUL_attendance_bot) 联系我们。欢迎反馈和贡献！
+如有问题或建议，请通过 [GitHub 仓库](https://github.com/PandaQuQ/RHUL_attendance_bot) 联系我。欢迎反馈和贡献！

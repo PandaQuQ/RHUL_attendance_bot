@@ -59,29 +59,53 @@ pip install -r requirements.txt
 mkdir ics
 ```
 
+### Step 6: Prepare Your Calendar File
+
+- Go to [Royal Holloway Timetable](https://intranet.royalholloway.ac.uk/students/study/timetable/your-timetable.aspx)
+- Select "Your Timetable" and log in
+- Click "My Timetable" from the left sidebar
+- In the "View Timetable As" dropdown, select `Calendar Download`
+- Click the `View Timetable` button to go to the download page
+- On the download page, click the `Android™ and others` button to get the download link
+- Paste the download link in your browser to download the `.ics` file
+- Place the downloaded `.ics` file in the `ics` folder located in the script's root directory
+
 ## Usage
 
-1. **Prepare Your Calendar File**:
+1. **Navigate to the Script Directory**:
 
-   - Go to [Royal Holloway Timetable](https://intranet.royalholloway.ac.uk/students/study/timetable/your-timetable.aspx)
-   - Select "Your Timetable" and log in
-   - Click "My Timetable" from the left sidebar
-   - In the "View Timetable As" dropdown, select `Calendar Download`
-   - Click the `View Timetable` button to go to the download page
-   - On the download page, click the `Android™ and others` button to get the download link
-   - Paste the download link in your browser to download the `.ics` file
-   - Place the downloaded `.ics` file in the `ics` folder located in the script's root directory
+   ```bash
+   cd RHUL_attendance_bot
+   ```
 
-2. **Run the Script**:
+2. **Activate the Virtual Environment**:
 
+   #### On Windows:
+   ```bash
+   venv\Scripts\activate
+   ```
+
+   #### On macOS/Linux:
+   ```bash
+   source venv/bin/activate
+   ```
+
+3. **Run the Script**:
+
+   #### On Windows:
    ```bash
    python RHUL_attendance_bot.py
    ```
 
-3. **First-Time Login** (Required):
+   #### On macOS/Linux:
+   ```bash
+   python3 RHUL_attendance_bot.py
+   ```
 
-   - When you run the script for the first time, you **must** manually trigger attendance to complete the login process
-   - Press `[`, then `]` to manually trigger the login
+   > **⚠️ Important - First-Time Login Required**
+   > 
+   > When you run the script for the first time, you **must** manually trigger attendance to complete the login process.
+   > Press `[`, then `]` to manually trigger the login.
 
 4. **Keyboard Shortcuts**:
 
@@ -94,6 +118,12 @@ mkdir ics
 - **Virtual Environment**: Using a virtual environment is highly recommended to avoid conflicts with global packages.
 - **System Time**: If the system time is not synchronized with the NTP server, the script will prompt you to synchronize your system clock.
 - **Supported Platforms**: The script supports Windows, macOS, and Linux.
+
+> **🔐 Security Note - Login Session Duration**
+> 
+> Due to the university's 2FA (Two-Factor Authentication) policy, a login session typically lasts about **one week**. 
+> It is **strongly recommended** to regularly check the script status to prevent missed attendance.
+> You may need to manually re-login after the session expires.
 
 ## Configuration
 
@@ -109,6 +139,15 @@ If an update is detected, the script will prompt you to update. You can choose t
 2. **Dependency Issues**: If you encounter errors related to missing modules, ensure you have installed all dependencies listed in `requirements.txt`.
 3. **Virtual Environment Issues**: If you face issues while running the script, try setting up a fresh virtual environment and reinstalling the dependencies.
 
+## TODO
+
+Future features and improvements planned for this project:
+
+- 🔲 **2FA Integration**: Integrate Two-Factor Authentication support
+- 🔲 **2FA Code Reading**: Automatically read 2FA verification codes
+- 🔲 **Automatic Login**: Implement fully automatic login without manual intervention
+- 🔲 **Discord Webhook Bot**: Add Discord webhook notifications for attendance status
+
 ## License
 
 This project is licensed under the MIT License with an additional clause. See the [LICENSE](LICENSE) file for details.
@@ -119,4 +158,4 @@ This project is licensed under the MIT License with an additional clause. See th
 
 ## Contact
 
-For questions or suggestions, please reach out via the [GitHub repository](https://github.com/PandaQuQ/RHUL_attendance_bot). We welcome feedback and contributions!
+For questions or suggestions, please feel free to reach out via the [GitHub repository](https://github.com/PandaQuQ/RHUL_attendance_bot). Feedback and contributions are welcome!
