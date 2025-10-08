@@ -21,44 +21,72 @@ The RHUL Attendance Bot automates attendance marking for Royal Holloway students
 
 ## Installation
 
-1. **Clone the Repository**:
+### Step 1: Clone the Repository
 
-    ```bash
-    git clone https://github.com/PandaQuQ/RHUL_attendance_bot.git
-    cd RHUL_attendance_bot
-    ```
+```bash
+git clone https://github.com/PandaQuQ/RHUL_attendance_bot.git
+```
 
-2. **Set Up a Virtual Environment** (Recommended):
+### Step 2: Navigate to the Project Directory
 
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows use: venv\Scripts\activate
-    ```
+```bash
+cd RHUL_attendance_bot
+```
 
-3. **Install Dependencies**:
+### Step 3: Set Up a Virtual Environment (Recommended)
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+#### On Windows:
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+#### On macOS/Linux:
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### Step 4: Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Step 5: Create the ICS Folder
+
+```bash
+mkdir ics
+```
 
 ## Usage
 
 1. **Prepare Your Calendar File**:
 
-   - Place a single `.ics` file containing your event schedule in the `ics` folder located in the script's root directory.
+   - Go to [Royal Holloway Timetable](https://intranet.royalholloway.ac.uk/students/study/timetable/your-timetable.aspx)
+   - Select "Your Timetable" and log in
+   - Click "My Timetable" from the left sidebar
+   - In the "View Timetable As" dropdown, select `Calendar Download`
+   - Click the `View Timetable` button to go to the download page
+   - On the download page, click the `Android™ and others` button to get the download link
+   - Paste the download link in your browser to download the `.ics` file
+   - Place the downloaded `.ics` file in the `ics` folder located in the script's root directory
 
 2. **Run the Script**:
 
    ```bash
-   python main.py
+   python RHUL_attendance_bot.py
    ```
 
-3. **Keyboard Shortcuts**:
+3. **First-Time Login** (Required):
 
-   - **Manually Trigger the Next Event**: Press `[`, then `]`.
-   - **Exit the Script**: Press `[`, then `q`.
+   - When you run the script for the first time, you **must** manually trigger attendance to complete the login process
+   - Press `[`, then `]` to manually trigger the login
 
-4. **First-Time Login**: The first time you run the script, you may need to manually trigger attendance to log in.
+4. **Keyboard Shortcuts**:
+
+   - **Manually Trigger the Next Event**: Press `[`, then `]`
+   - **Exit the Script**: Press `[`, then `q`
 
 ## Important Notes
 
