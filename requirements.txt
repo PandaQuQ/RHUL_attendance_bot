@@ -4,3 +4,4 @@ selenium
 webdriver-manager
 pynput
 ntplib
+pyotp
