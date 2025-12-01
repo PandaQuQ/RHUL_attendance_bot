@@ -11,3 +11,6 @@ ics/
 /venv
 /.venv
 /env
+
+# Ignore 2fa_config.json file
+2fa_config.json
