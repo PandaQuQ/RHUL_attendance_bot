@@ -72,7 +72,37 @@ def main():
     check_virtual_environment()
     check_dependencies()
     check_chrome_installed()
-    
+
+    # First-run check: credentials and timetable
+    credentials_path = os.path.join(script_dir, 'credentials.json')
+    ics_folder = os.path.join(script_dir, 'ics')
+    ics_file = os.path.join(ics_folder, 'student_timetable.ics')
+    first_run = False
+    # Check credentials
+    creds_ok = False
+    if os.path.exists(credentials_path):
+        try:
+            import json
+            with open(credentials_path, 'r') as f:
+                creds = json.load(f)
+            if 'username' in creds and 'password' in creds and creds['username'] and creds['password']:
+                creds_ok = True
+        except Exception:
+            creds_ok = False
+    # Check timetable
+    timetable_ok = os.path.exists(ics_file)
+    if not creds_ok or not timetable_ok:
+        first_run = True
+
+    # Onboarding if first run
+    if first_run:
+        print('First run detected: running onboarding steps...')
+        # Run auto_login.py for first-time login
+        import subprocess
+        subprocess.run([sys.executable, os.path.join(script_dir, 'auto_login.py')])
+        # Run fetch_ics.py to get timetable
+        subprocess.run([sys.executable, os.path.join(script_dir, 'fetch_ics.py')])
+
     # Now proceed to import the rest of the modules
     import threading
     import time
