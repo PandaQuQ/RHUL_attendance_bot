@@ -69,7 +69,9 @@ def fetch_ics_url():
             print(f'iCal URL: {ical_url}')
             # Download the .ics file
             import requests
-            response = requests.get(ical_url)
+            # Campus site has broken/unknown cert; disable verification for this download.
+            requests.packages.urllib3.disable_warnings()  # suppress InsecureRequestWarning
+            response = requests.get(ical_url, verify=False)
             if response.status_code == 200:
                 ics_folder = os.path.join(os.getcwd(), 'ics')
                 os.makedirs(ics_folder, exist_ok=True)

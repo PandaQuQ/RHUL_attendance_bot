@@ -38,6 +38,62 @@ def load_credentials():
         return json.load(f)
 
 
+def click_by_xpath_contains_text(driver, text, timeout=10):
+    xpath = f"//*[self::button or self::a or self::div or self::span][contains(normalize-space(.), '{text}') ]"
+    try:
+        elem = WebDriverWait(driver, timeout).until(
+            EC.element_to_be_clickable((By.XPATH, xpath))
+        )
+        driver.execute_script("arguments[0].click();", elem)
+        print(f"Clicked element with text contains: {text}")
+        return True
+    except Exception:
+        return False
+
+
+def maybe_switch_to_login_iframe(driver):
+    """If login fields are inside an iframe, switch into it."""
+    try:
+        driver.switch_to.default_content()
+        frames = driver.find_elements(By.TAG_NAME, 'iframe')
+        for frame in frames:
+            try:
+                driver.switch_to.frame(frame)
+                if driver.find_elements(By.NAME, 'loginfmt') or driver.find_elements(By.ID, 'i0116'):
+                    return True
+            except Exception:
+                driver.switch_to.default_content()
+        driver.switch_to.default_content()
+    except Exception:
+        driver.switch_to.default_content()
+    return False
+
+
+def click_with_retries(driver, candidates, attempts=6, delay=1.0):
+    """Try multiple selectors, with normal then JS click, retrying for dynamic UI."""
+    for attempt in range(1, attempts + 1):
+        for by, sel, label in candidates:
+            try:
+                elems = driver.find_elements(by, sel)
+                print(f"[click attempt {attempt}] selector={sel} label={label} found={len(elems)}")
+                for elem in elems:
+                    if not elem.is_displayed() or not elem.is_enabled():
+                        continue
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elem)
+                    try:
+                        elem.click()
+                    except Exception:
+                        driver.execute_script("arguments[0].click();", elem)
+                    print(f"[click attempt {attempt}] clicked {label} via {sel}")
+                    return True
+            except Exception as e:
+                print(f"[click attempt {attempt}] selector={sel} error={e}")
+                continue
+        time.sleep(delay)
+    print("click_with_retries exhausted without a click")
+    return False
+
+
 def first_time_setup():
     creds = load_credentials()
     if creds:
@@ -300,6 +356,254 @@ def fill_otp(driver):
         return True
     except Exception as e:
         print(f'OTP input not found or not needed: {e}')
+        return False
+
+
+def fill_ms_login(driver, username, password):
+    """Robust fill for Microsoft login page (prefers password-first)."""
+    try:
+        click_by_xpath_contains_text(driver, 'Accept', timeout=2)  # cookie banner if any
+        maybe_switch_to_login_iframe(driver)
+
+        # Account picker
+        candidates = [username, username.split('@')[0], 'Use another account', 'Other account']
+        for text in candidates:
+            if click_by_xpath_contains_text(driver, text, timeout=3):
+                break
+
+        def visible_el(by, sel, wait=8):
+            try:
+                el = WebDriverWait(driver, wait).until(EC.presence_of_element_located((by, sel)))
+                if el.is_displayed():
+                    return el
+            except Exception:
+                return None
+            return None
+
+        pwd_input = visible_el(By.ID, 'i0118') or visible_el(By.NAME, 'passwd')
+
+        user_input = None
+        for by, sel in [(By.NAME, 'loginfmt'), (By.ID, 'i0116')]:
+            el = visible_el(by, sel)
+            if el:
+                user_input = el
+                break
+
+        if user_input:
+            user_input.clear()
+            driver.execute_script("arguments[0].focus();", user_input)
+            try:
+                user_input.send_keys(username)
+            except Exception:
+                driver.execute_script("arguments[0].value = arguments[1];", user_input, username)
+            try:
+                btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, 'idSIButton9')))
+                driver.execute_script("arguments[0].click();", btn)
+            except Exception:
+                pass
+            time.sleep(1.0)
+            pwd_input = visible_el(By.ID, 'i0118') or visible_el(By.NAME, 'passwd')
+
+        if pwd_input:
+            pwd_input.clear()
+            driver.execute_script("arguments[0].focus();", pwd_input)
+            try:
+                pwd_input.send_keys(password)
+            except Exception:
+                driver.execute_script("arguments[0].value = arguments[1];", pwd_input, password)
+            try:
+                btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, 'idSIButton9')))
+                driver.execute_script("arguments[0].click();", btn)
+            except Exception:
+                pass
+            time.sleep(1.0)
+            return True
+
+        print("Password input not found or not interactable.")
+        return False
+    except Exception as e:
+        print(f"MS login fill failed: {e}")
+        return False
+
+
+def handle_mfa_code(driver):
+    """Fallback path: use verification code instead of Authenticator app."""
+    try:
+        maybe_switch_to_login_iframe(driver)
+        # Step 1: open alternative methods
+        try:
+            alt_link = WebDriverWait(driver, 6).until(
+                EC.element_to_be_clickable((By.ID, 'signInAnotherWay'))
+            )
+            driver.execute_script("arguments[0].click();", alt_link)
+            print("Clicked 'signInAnotherWay' link")
+        except Exception:
+            click_by_xpath_contains_text(driver, "I can't use my Microsoft Authenticator app right now", timeout=5)
+
+        # Step 2: choose verification code and wait for OTP input
+        candidates = [
+            (By.CSS_SELECTOR, "div.table[role='button'][data-value='PhoneAppOTP']", "PhoneAppOTP table role button"),
+            (By.CSS_SELECTOR, "#idDiv_SAOTCS_Proofs div.table[role='button'][data-value='PhoneAppOTP']", "PhoneAppOTP table inside proofs"),
+            (By.CSS_SELECTOR, "div[role='button'][data-value='PhoneAppOTP']", "PhoneAppOTP role button"),
+            (By.CSS_SELECTOR, "[data-value='PhoneAppOTP']", "PhoneAppOTP data-value"),
+            (By.CSS_SELECTOR, "div.row.tile [data-value='PhoneAppOTP']", "row tile data-value PhoneAppOTP"),
+            (By.CSS_SELECTOR, "div.row.tile", "row tile"),
+            (By.CSS_SELECTOR, "div.row.tile[role='listitem']", "row tile listitem"),
+            (By.CSS_SELECTOR, "#idDiv_SAOTCS_Proofs > div:nth-child(2) > div > div > div.table-cell.text-left.content > div", "provided CSS"),
+            (By.XPATH, "//*[@id='idDiv_SAOTCS_Proofs']/div[2]/div/div/div[2]/div", "provided XPath"),
+            (By.XPATH, "/html/body/div/form[1]/div/div/div[2]/div[1]/div/div/div/div/div/div[2]/div[2]/div/div[2]/div/div[2]/div[2]/div[2]/div/div/div[2]/div", "provided absolute XPath"),
+            (By.CSS_SELECTOR, "#idDiv_SAOTCS_Proofs .table-row", "tile row"),
+            (By.CSS_SELECTOR, "#idDiv_SAOTCS_Proofs .table-row .table-cell.text-left.content", "tile content cell"),
+            (By.XPATH, "//*[@id='idDiv_SAOTCS_Proofs']//div[contains(@class,'table-row')]//div[contains(@class,'text-left')]/div[contains(normalize-space(.), 'Use a verification code')]/ancestor::div[contains(@class,'table-row')][1]", "table-row ancestor of text"),
+            (By.XPATH, "//img[contains(@src,'picker_verify_code')]/ancestor::div[contains(@class,'table-row')][1]", "verify-code image row"),
+            (By.CSS_SELECTOR, "img[src*='picker_verify_code']", "verify-code img"),
+            (By.CSS_SELECTOR, "#idDiv_SAOTCS_Proofs", "proofs container"),
+            (By.XPATH, "//*[@id='idDiv_SAOTCS_Proofs']//div[contains(normalize-space(.), 'Use a verification code')]/parent::*", "text parent"),
+            (By.XPATH, "//*[@id='idDiv_SAOTCS_Proofs']//div[contains(normalize-space(.), 'Use a verification code')]/parent::div/parent::div", "text grandparent"),
+            (By.XPATH, "//*[@id='idDiv_SAOTCS_Proofs']//div[contains(@class,'table-cell')][.//div[contains(normalize-space(.), 'Use a verification code')]]", "cell containing text"),
+        ]
+
+        otp_input = None
+        for _ in range(2):
+            chosen = False
+            if click_with_retries(driver, candidates, attempts=6, delay=0.8):
+                chosen = True
+            elif click_by_xpath_contains_text(driver, "Use a verification code", timeout=5):
+                chosen = True
+            elif click_by_xpath_contains_text(driver, "Use verification code", timeout=5):
+                chosen = True
+            else:
+                try:
+                    elem = WebDriverWait(driver, 6).until(
+                        EC.presence_of_element_located((By.XPATH, "//div[contains(normalize-space(.), 'Use a verification code')]/ancestor::*[self::button or self::a or @role='button' or @tabindex='0'][1]"))
+                    )
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elem)
+                    driver.execute_script("arguments[0].click();", elem)
+                    print("Clicked ancestor container for 'Use a verification code'")
+                    chosen = True
+                except Exception:
+                    pass
+
+            if not chosen:
+                print("Could not select 'Use a verification code'.")
+                return False
+
+            print("Waiting for OTP input after clicking verification code option...")
+            selectors = [
+                (By.NAME, 'otc'),
+                (By.ID, 'idTxtBx_SAOTCC_OTC'),
+                (By.CSS_SELECTOR, 'input[data-testid="verification-entercode-input"]'),
+                (By.CSS_SELECTOR, 'input[name="otc"]'),
+            ]
+            for by, sel in selectors:
+                try:
+                    otp_input = WebDriverWait(driver, 12).until(EC.element_to_be_clickable((by, sel)))
+                    break
+                except Exception:
+                    continue
+            if otp_input:
+                break
+            else:
+                print("OTP input still not visible; retrying click on verification code option...")
+
+        if not otp_input:
+            print("OTP input not found after clicking verification code option.")
+            return False
+
+        otp_input.clear()
+        otp = get_otp()
+        otp_input.send_keys(otp)
+        print(f"Filled OTP: {otp}")
+
+        verify_selectors = [
+            (By.ID, 'idSubmit_SAOTCC_Continue'),
+            (By.CSS_SELECTOR, '[data-testid="reskin-step-next-button"]'),
+        ]
+        clicked = False
+        for by, sel in verify_selectors:
+            try:
+                btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((by, sel)))
+                driver.execute_script("arguments[0].click();", btn)
+                clicked = True
+                break
+            except Exception:
+                continue
+        if not clicked:
+            if click_by_xpath_contains_text(driver, 'Verify', timeout=5):
+                clicked = True
+        if not clicked:
+            print("Verify button not found.")
+            return False
+        time.sleep(2)
+        return True
+    except Exception as e:
+        print(f"MFA fallback failed: {e}")
+        return False
+
+
+def handle_kmsi(driver):
+    """Tick 'Don't show this again' (KMSI) and confirm Yes/Next."""
+    try:
+        kmsi_checkbox = driver.find_element(By.ID, "KmsiCheckboxField")
+        if kmsi_checkbox.is_displayed() and kmsi_checkbox.is_enabled() and not kmsi_checkbox.is_selected():
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", kmsi_checkbox)
+            try:
+                kmsi_checkbox.click()
+            except Exception:
+                driver.execute_script("arguments[0].click();", kmsi_checkbox)
+            print("Ticked KMSI checkbox")
+            time.sleep(0.3)
+    except Exception:
+        pass
+
+    candidates = [
+        (By.ID, 'idSIButton9', 'idSIButton9'),
+        (By.CSS_SELECTOR, "input[type='submit'].button_primary", "button_primary submit"),
+        (By.XPATH, "//input[@type='submit' and (contains(@value,'Yes') or contains(@value,'是') or contains(@value,'继续') or contains(@value,'Next') or contains(@value,'Sign in'))]", "submit value match"),
+        (By.XPATH, "//button[contains(normalize-space(.), 'Yes') or contains(normalize-space(.), '是') or contains(normalize-space(.), '继续') or contains(normalize-space(.), 'Next') or contains(normalize-space(.), 'Sign in') or contains(normalize-space(.), 'Accept') or contains(normalize-space(.), '登录') or contains(normalize-space(.), '同意')]", "button text match"),
+    ]
+    if click_with_retries(driver, candidates, attempts=5, delay=0.6):
+        print("Clicked KMSI confirmation button")
+        return True
+    if click_by_xpath_contains_text(driver, 'Yes', timeout=3) or click_by_xpath_contains_text(driver, 'Next', timeout=3):
+        print("Clicked KMSI confirmation via text fallback")
+        return True
+    print("KMSI confirmation button not found")
+    return False
+
+
+def renew_login(driver, expected_url=None):
+    """Non-first login: fill credentials, handle MFA, KMSI."""
+    creds = load_credentials()
+    if not creds or 'username' not in creds or 'password' not in creds:
+        print('credentials.json missing username/password; cannot auto-login.')
+        return False
+    username = creds['username']
+    password = creds['password']
+
+    try:
+        current_url = driver.current_url
+        page_src = driver.page_source
+        if ('login.microsoftonline.com' in current_url) or ('mysignins.microsoft.com' in current_url) or ('loginfmt' in page_src):
+            print("Detected Microsoft login page; attempting auto login...")
+            fill_ms_login(driver, username, password)
+            handle_mfa_code(driver)
+            handle_kmsi(driver)
+        else:
+            print("No Microsoft login page detected; skipping renew_login.")
+            return True
+
+        if expected_url:
+            try:
+                WebDriverWait(driver, 60).until(EC.url_contains(expected_url))
+                print("Login detected via URL match.")
+                return True
+            except Exception:
+                print("Login not detected within timeout.")
+                return False
+        return True
+    except Exception as e:
+        print(f"renew_login failed: {e}")
         return False
     
 if __name__ == '__main__':
