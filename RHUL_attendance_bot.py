@@ -116,6 +116,7 @@ def main():
     from rich.live import Live
     from rich.table import Table
     from rich.align import Align
+    from rich.text import Text
     from selenium import webdriver
     from selenium.webdriver.chrome.service import Service
     from selenium.webdriver.chrome.options import Options
@@ -753,7 +754,18 @@ def main():
         delta = datetime.now() - start_time
         return str(delta).split('.')[0]
 
+    def get_git_info():
+        """Return (hash, date, count) for current HEAD; fallback to unknown."""
+        try:
+            commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd=script_dir).decode().strip()
+            commit_date = subprocess.check_output(['git', 'show', '-s', '--format=%cd', '--date=iso-strict', 'HEAD'], cwd=script_dir).decode().strip()
+            commit_count = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD'], cwd=script_dir).decode().strip()
+            return commit, commit_date, commit_count
+        except Exception:
+            return "unknown", "unknown", "unknown"
+
     def update_display(exit_event):
+        git_commit, git_date, git_count = get_git_info()
         with Live(refresh_per_second=1, console=console, screen=True) as live:
             while not exit_event.is_set():
                 with counter_lock:
@@ -775,17 +787,22 @@ def main():
                 log_content = "\n".join(latest_logs) if latest_logs else "No logs available."
                 log_panel = Panel(log_content, title="[bold green]Latest Logs[/bold green]", border_style="green", padding=(1, 2))
 
-                shortcut_instructions = Align.center(
-                    "Press [yellow][[/yellow] then [yellow]][/yellow] to manually trigger the next event.\n"
-                    "Press [yellow][[/yellow] then [yellow]q[/yellow] to exit the script.\n"
-                    "You may need to trigger manually the first time to log in.",
-                    vertical="middle"
+                instructions = Text.from_markup(
+                    "Press [yellow][[/yellow] then [yellow]][/yellow] to manually trigger the next event\n"
+                    "Press [yellow][[/yellow] then [yellow]q[/yellow] to exit the script",
+                    justify="center",
                 )
+                shortcut_instructions = Align.center(instructions, vertical="middle")
+
+                version_text = Align.center(f"Version: {git_commit} ({git_date})", vertical="middle")
+                commit_count_text = Align.center(f"This is the No.[red]{git_count}[/red] version", vertical="middle")
 
                 layout = Table.grid(expand=True)
                 layout.add_row(info_table)
                 layout.add_row(log_panel)
                 layout.add_row(shortcut_instructions)
+                layout.add_row(version_text)
+                layout.add_row(commit_count_text)
 
                 live.update(layout)
                 if exit_event.wait(timeout=1):
@@ -847,10 +864,14 @@ def main():
 
         # Start threads with exit_event
         display_thread = threading.Thread(target=update_display, args=(exit_event,), daemon=True)
-        display_thread.start()
         keypress_thread = threading.Thread(target=listen_for_keypress, args=(upcoming_events, exit_event), daemon=True)
+        display_thread.start()
         keypress_thread.start()
+
         wait_and_trigger(upcoming_events, exit_event)
+        exit_event.set()
+        display_thread.join(timeout=3)
+        keypress_thread.join(timeout=3)
 
     except KeyboardInterrupt:
         logger.info("Script terminated by user.")
@@ -858,6 +879,12 @@ def main():
     except Exception as e:
         logger.error(f"Unhandled exception: {e}", exc_info=True)
         exit_event.set()
+    finally:
+        try:
+            display_thread.join(timeout=3)
+            keypress_thread.join(timeout=3)
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     main()
