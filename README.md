@@ -12,6 +12,7 @@ The RHUL Attendance Bot automates attendance marking for Royal Holloway students
 - **Environment and Dependency Checks**: Ensures the script is run in the proper environment and all dependencies are installed.
 - **System Time Synchronization Check**: Checks if the system time is synchronized with the NTP server.
 - **Auto-Update Feature**: Detects script updates and prompts the user to update.
+- **Auto Login with 2FA**: Handles Microsoft login, switches to verification code, and auto-fills TOTP from your saved secret.
 
 ## Prerequisites
 
@@ -102,10 +103,9 @@ mkdir ics
    python3 RHUL_attendance_bot.py
    ```
 
-   > **⚠️ Important - First-Time Login Required**
+   > **✅ Auto Login + 2FA**
    > 
-   > When you run the script for the first time, you **must** manually trigger attendance to complete the login process.
-   > Press `[`, then `]` to manually trigger the login.
+   > The bot now handles Microsoft login and the verification-code MFA flow automatically using your stored credentials and local TOTP secret. On first run, complete onboarding (credentials/secret + ICS download) as prompted; afterwards, login and 2FA are fully automatic.
 
 4. **Keyboard Shortcuts**:
 
@@ -141,11 +141,11 @@ If an update is detected, the script will prompt you to update. You can choose t
 
 ## TODO
 
-Future features and improvements planned for this project:
+Current focus / future ideas:
 
-- 🔲 **2FA Integration**: Integrate Two-Factor Authentication support
-- 🔲 **2FA Code Reading**: Automatically read 2FA verification codes
-- 🔲 **Automatic Login**: Implement fully automatic login without manual intervention
+- ✅ **2FA Integration**: Microsoft verification-code path with TOTP auto-fill is implemented.
+- ✅ **Automatic Login**: Stored credentials + TOTP drive a fully automatic login flow.
+- ✅ **2FA Code Reading**: OTP is generated locally from your saved secret.
 - 🔲 **Discord Webhook Bot**: Add Discord webhook notifications for attendance status
 
 ## License
