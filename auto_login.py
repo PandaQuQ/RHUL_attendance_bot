@@ -162,6 +162,12 @@ def first_time_setup():
         waited = 0
         while waited < max_wait:
             current_url = driver.current_url
+            # On first login, handle the "Don't show this again" prompt (KMSI) while user completes MFA on phone
+            try:
+                if driver.find_elements(By.ID, "KmsiCheckboxField"):
+                    handle_kmsi(driver)
+            except Exception:
+                pass
             if current_url.startswith(SECURITY_INFO_URL):
                 print('Successfully navigated to security info page. Automating authenticator binding...')
                 break
