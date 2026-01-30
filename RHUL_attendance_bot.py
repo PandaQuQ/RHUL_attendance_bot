@@ -754,6 +754,41 @@ def main():
         delta = datetime.now() - start_time
         return str(delta).split('.')[0]
 
+    def ensure_profile_nickname():
+        try:
+            with open(credentials_path, 'r') as f:
+                data = json.load(f)
+        except Exception:
+            return None
+        if data.get('profile_nickname'):
+            return data.get('profile_nickname')
+        while True:
+            nickname = input('Enter your profile nickname: ').strip()
+            if nickname:
+                break
+            print('Profile nickname cannot be empty. Please enter again.')
+        data['profile_nickname'] = nickname
+        try:
+            with open(credentials_path, 'w') as f:
+                json.dump(data, f)
+        except Exception:
+            pass
+        return nickname
+
+    def load_profile_nickname():
+        try:
+            with open(credentials_path, 'r') as f:
+                data = json.load(f)
+            nickname = data.get('profile_nickname')
+            if nickname:
+                return nickname
+            return "Not set"
+        except Exception:
+            return "Not set"
+
+    ensure_profile_nickname()
+    profile_nickname = load_profile_nickname()
+
     def get_git_info():
         """Return (hash, date, count) for current HEAD; fallback to unknown."""
         try:
@@ -766,6 +801,7 @@ def main():
 
     def update_display(exit_event):
         git_commit, git_date, git_count = get_git_info()
+        nickname = profile_nickname
         with Live(refresh_per_second=1, console=console, screen=True) as live:
             while not exit_event.is_set():
                 with counter_lock:
@@ -794,15 +830,18 @@ def main():
                 )
                 shortcut_instructions = Align.center(instructions, vertical="middle")
 
-                version_text = Align.center(f"Version: {git_commit} ({git_date})", vertical="middle")
-                commit_count_text = Align.center(f"This is the No.[red]{git_count}[/red] version", vertical="middle")
+                version_number_text = Align.center(f"This is the No.[red]{git_count}[/red] version", vertical="middle")
+                nickname_text = Align.center(f"Profile: {nickname}", vertical="middle")
+                version_text = Align.center(f"Commit: {git_commit} ({git_date})", vertical="middle")
 
                 layout = Table.grid(expand=True)
+               
                 layout.add_row(info_table)
                 layout.add_row(log_panel)
+                layout.add_row(nickname_text)
                 layout.add_row(shortcut_instructions)
                 layout.add_row(version_text)
-                layout.add_row(commit_count_text)
+                layout.add_row(version_number_text)
 
                 live.update(layout)
                 if exit_event.wait(timeout=1):
