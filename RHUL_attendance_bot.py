@@ -129,6 +129,7 @@ def main():
     import zoneinfo  # For Python 3.9 and above
     import ntplib  # Used to check system time synchronization
     from auto_login import renew_login
+    from discord_broadcast import DiscordBroadcaster
     # Reuse helpers but add custom MFA fallback below
 
     # Initialize Rich console
@@ -526,12 +527,17 @@ def main():
             logger.error(f"MFA fallback failed: {e}", exc_info=True)
             return False
 
+    broadcaster = None
+
     def attempt_login(driver, expected_url):
         """Try automatic MS login using stored credentials and OTP."""
         try:
             result = renew_login(driver, expected_url)
             if result:
-                return verify_login(driver, expected_url, max_wait_minutes=5)
+                verified = verify_login(driver, expected_url, max_wait_minutes=5)
+                if verified and broadcaster:
+                    broadcaster.notify_renew_login_success()
+                return verified
             return False
         except Exception as e:
             logger.error(f"Auto-login attempt failed: {e}", exc_info=True)
@@ -597,6 +603,9 @@ def main():
                 with counter_lock:
                     attendance_success_count += 1
 
+                if broadcaster:
+                    broadcaster.notify_attendance_success(event_name, event_time)
+
                 with events_lock:
                     for event in upcoming_events:
                         if event[0] == event_time and event[1] == event_name:
@@ -611,7 +620,11 @@ def main():
             logger.error(f"Failed during attendance marking: {e}", exc_info=True)
             return False
         finally:
-            driver.quit()
+            if driver:
+                try:
+                    driver.quit()
+                except Exception as e:
+                    logger.warning(f"Failed to quit WebDriver cleanly: {e}")
             # Log the next event
             with events_lock:
                 if upcoming_events:
@@ -767,6 +780,9 @@ def main():
             if nickname:
                 break
             print('Profile nickname cannot be empty. Please enter again.')
+        webhook_url = input('Enter your Discord webhook URL (leave blank to disable): ').strip()
+        data['discord_webhook_url'] = webhook_url
+        data['enable_discord_webhook'] = bool(webhook_url)
         data['profile_nickname'] = nickname
         try:
             with open(credentials_path, 'w') as f:
@@ -788,6 +804,7 @@ def main():
 
     ensure_profile_nickname()
     profile_nickname = load_profile_nickname()
+    broadcaster = DiscordBroadcaster(credentials_path=credentials_path, logger=logger, profile_name=profile_nickname)
 
     def get_git_info():
         """Return (hash, date, count) for current HEAD; fallback to unknown."""
@@ -802,6 +819,11 @@ def main():
     def update_display(exit_event):
         git_commit, git_date, git_count = get_git_info()
         nickname = profile_nickname
+        broadcast_enabled = False
+        try:
+            broadcast_enabled = bool(getattr(broadcaster, 'enabled', False))
+        except Exception:
+            broadcast_enabled = False
         with Live(refresh_per_second=1, console=console, screen=True) as live:
             while not exit_event.is_set():
                 with counter_lock:
@@ -832,6 +854,7 @@ def main():
 
                 version_number_text = Align.center(f"This is the No.[red]{git_count}[/red] version", vertical="middle")
                 nickname_text = Align.center(f"Profile: {nickname}", vertical="middle")
+                broadcast_text = Align.center(f"Discord Broadcast: {'Enabled' if broadcast_enabled else 'Disabled'}", vertical="middle")
                 version_text = Align.center(f"Commit: {git_commit} ({git_date})", vertical="middle")
 
                 layout = Table.grid(expand=True)
@@ -839,6 +862,7 @@ def main():
                 layout.add_row(info_table)
                 layout.add_row(log_panel)
                 layout.add_row(nickname_text)
+                layout.add_row(broadcast_text)
                 layout.add_row(shortcut_instructions)
                 layout.add_row(version_text)
                 layout.add_row(version_number_text)
@@ -901,6 +925,12 @@ def main():
             logger.info("No upcoming events.")
             return
 
+        git_commit, git_date, git_count = get_git_info()
+
+        if broadcaster:
+            version_label = f"No.{git_count} version"
+            broadcaster.notify_bot_started(version_label=version_label)
+
         # Start threads with exit_event
         display_thread = threading.Thread(target=update_display, args=(exit_event,), daemon=True)
         keypress_thread = threading.Thread(target=listen_for_keypress, args=(upcoming_events, exit_event), daemon=True)
@@ -919,6 +949,11 @@ def main():
         logger.error(f"Unhandled exception: {e}", exc_info=True)
         exit_event.set()
     finally:
+        if broadcaster:
+            try:
+                broadcaster.notify_bot_stopped(runtime=get_runtime_duration())
+            except Exception:
+                pass
         try:
             display_thread.join(timeout=3)
             keypress_thread.join(timeout=3)
