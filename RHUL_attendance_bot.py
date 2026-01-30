@@ -100,7 +100,6 @@ def main():
     if first_run:
         print('First run detected: running onboarding steps...')
         # Run auto_login.py for first-time login
-        import subprocess
         subprocess.run([sys.executable, os.path.join(script_dir, 'auto_login.py')])
         # Run fetch_ics.py to get timetable
         subprocess.run([sys.executable, os.path.join(script_dir, 'fetch_ics.py')])
