@@ -14,3 +14,4 @@ ics/
 
 # Ignore 2fa_config.json file
 2fa_config.json
+credentials.json
