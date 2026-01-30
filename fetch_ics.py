@@ -4,7 +4,7 @@ import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
@@ -44,6 +44,11 @@ def fetch_ics_url():
         # Click My Timetable
         WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, 'LinkBtn_studentMyTimetable')))
         driver.find_element(By.ID, 'LinkBtn_studentMyTimetable').click()
+        time.sleep(1)
+        # Select weeks: Autumn, Spring & Summer Term
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, 'lbWeeks')))
+        select_weeks = Select(driver.find_element(By.ID, 'lbWeeks'))
+        select_weeks.select_by_value('2;3;4;5;6;7;8;9;10;11;12;18;19;20;21;22;23;24;25;26;27;28;33;34;35;36;37;38')
         time.sleep(1)
         # Select iCal radio
         WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, 'RadioType_2')))
