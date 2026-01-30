@@ -18,11 +18,25 @@ SECURITY_INFO_URL = 'https://mysignins.microsoft.com/security-info'
 LOGIN_URL = 'https://mysignins.microsoft.com/security-info'
 
 
-def save_config(username, password, secret):
+def save_config(username, password, secret, profile_nickname=None, discord_webhook_url=None, enable_discord_webhook=None):
     with open(CONFIG_FILE, 'w') as f:
         json.dump({'secret': secret}, f)
+    payload = {'username': username, 'password': password}
+    if profile_nickname:
+        payload['profile_nickname'] = profile_nickname
+    if discord_webhook_url is not None:
+        payload['discord_webhook_url'] = discord_webhook_url
+        payload['enable_discord_webhook'] = bool(discord_webhook_url) if enable_discord_webhook is None else bool(enable_discord_webhook)
+    try:
+        # Preserve any existing fields
+        with open(CREDENTIALS_FILE, 'r') as f:
+            existing = json.load(f)
+        existing.update(payload)
+        payload = existing
+    except Exception:
+        pass
     with open(CREDENTIALS_FILE, 'w') as f:
-        json.dump({'username': username, 'password': password}, f)
+        json.dump(payload, f)
 
 
 def load_config():
@@ -96,16 +110,40 @@ def click_with_retries(driver, candidates, attempts=6, delay=1.0):
 
 def first_time_setup():
     creds = load_credentials()
+    profile_nickname = None
+    discord_webhook_url = None
+    enable_discord_webhook = None
     if creds:
-        username = creds['username']
-        password = creds['password']
+        username = creds.get('username')
+        password = creds.get('password')
+        profile_nickname = creds.get('profile_nickname')
+        discord_webhook_url = creds.get('discord_webhook_url')
+        enable_discord_webhook = creds.get('enable_discord_webhook')
         print('Loaded existing credentials. Starting automated login and 2FA binding...')
     else:
         username = input('Enter your Microsoft username: ')
         password = input('Enter your Microsoft password: ')
-        with open(CREDENTIALS_FILE, 'w') as f:
-            json.dump({'username': username, 'password': password}, f)
-        print('Credentials saved. Starting automated login and 2FA binding...')
+    if not profile_nickname:
+        while True:
+            profile_nickname = input('Enter your profile nickname: ').strip()
+            if profile_nickname:
+                break
+            print('Profile nickname cannot be empty. Please enter again.')
+        discord_webhook_url = input('Enter your Discord webhook URL (leave blank to disable): ').strip()
+        enable_discord_webhook = bool(discord_webhook_url)
+
+    payload = {
+        'username': username,
+        'password': password,
+        'profile_nickname': profile_nickname,
+    }
+    if discord_webhook_url is not None:
+        payload['discord_webhook_url'] = discord_webhook_url
+        payload['enable_discord_webhook'] = bool(discord_webhook_url) if enable_discord_webhook is None else bool(enable_discord_webhook)
+
+    with open(CREDENTIALS_FILE, 'w') as f:
+        json.dump(payload, f)
+    print('Credentials saved. Starting automated login and 2FA binding...')
     driver = start_driver()
     # Automated login
     driver.get(LOGIN_URL)
@@ -216,7 +254,14 @@ def first_time_setup():
             secret = secret_elem.text.strip()
             if secret:
                 bind(secret)
-                save_config(username, password, secret)
+                save_config(
+                    username,
+                    password,
+                    secret,
+                    profile_nickname,
+                    discord_webhook_url=discord_webhook_url,
+                    enable_discord_webhook=enable_discord_webhook,
+                )
                 print(f'Authenticator bound and secret saved: {secret}')
                 # Click '下一步' button after copying secret
                 btn_next = WebDriverWait(driver, 20).until(

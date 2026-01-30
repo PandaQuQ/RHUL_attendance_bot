@@ -13,6 +13,7 @@ The RHUL Attendance Bot automates attendance marking for Royal Holloway students
 - **System Time Synchronization Check**: Checks if the system time is synchronized with the NTP server.
 - **Auto-Update Feature**: Detects script updates and prompts the user to update.
 - **Auto Login with 2FA**: Handles Microsoft login, switches to verification code, and auto-fills TOTP from your saved secret.
+- **Discord Webhook Notifications (optional)**: Sends start/stop, login success, and attendance success messages with your profile name when a webhook URL is configured.
 
 ## Prerequisites
 
@@ -146,7 +147,7 @@ Current focus / future ideas:
 - ✅ **2FA Integration**: Microsoft verification-code path with TOTP auto-fill is implemented.
 - ✅ **Automatic Login**: Stored credentials + TOTP drive a fully automatic login flow.
 - ✅ **2FA Code Reading**: OTP is generated locally from your saved secret.
-- 🔲 **Discord Webhook Bot**: Add Discord webhook notifications for attendance status
+- ✅ **Discord Webhook Bot**: Discord webhook notifications for attendance status, login, and lifecycle (optional; disable by leaving webhook URL empty)
 
 ## License
 
