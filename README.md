@@ -1,6 +1,11 @@
 # RHUL Attendance Bot
 [中文](https://github.com/PandaQuQ/RHUL_attendance_bot/blob/main/README_CN.md)
 ---
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
+![Version No.](https://img.shields.io/github/commits-since/PandaQuQ/RHUL_attendance_bot/b80f0cf6c4b060ebf318bff844607af06225e6b0?label=Version%20No.)
+![Last Updated](https://img.shields.io/github/last-commit/PandaQuQ/RHUL_attendance_bot)
 
 The RHUL Attendance Bot automates attendance marking for Royal Holloway students by using web automation. The script checks your calendar events, triggers attendance based on specified conditions, and provides real-time logging using Rich library for better visualization.
 ![UI screenshot](assets/ui_screenshot.png)

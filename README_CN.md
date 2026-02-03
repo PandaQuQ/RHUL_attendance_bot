@@ -1,6 +1,11 @@
 # RHUL 自动签到脚本
 [English](https://github.com/PandaQuQ/RHUL_attendance_bot/blob/main/README.md)
 ---
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
+![Version No.](https://img.shields.io/github/commits-since/PandaQuQ/RHUL_attendance_bot/b80f0cf6c4b060ebf318bff844607af06225e6b0?label=Version%20No.)
+![Last Updated](https://img.shields.io/github/last-commit/PandaQuQ/RHUL_attendance_bot)
 
 RHUL 自动签到脚本通过使用网页自动化来为 Royal Holloway 学生自动签到。该脚本根据日历事件检查并触发签到操作，并使用 Rich 库进行实时日志记录，提供更好的可视化体验。
 ![UI screenshot](assets/ui_screenshot.png)
