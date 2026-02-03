@@ -3,7 +3,8 @@
 ---
 
 RHUL 自动签到脚本通过使用网页自动化来为 Royal Holloway 学生自动签到。该脚本根据日历事件检查并触发签到操作，并使用 Rich 库进行实时日志记录，提供更好的可视化体验。
-![alt text]({8BA55B13-C622-4EB4-93F2-964AF83C7A9E}.png)
+![UI screenshot](assets/ui_screenshot.png)
+![Discord broadcast screenshot](assets/discord_bot_screenshot.png)
 ## 功能
 
 - **自动签到**：根据日历事件自动打开签到页面并进行签到。
@@ -13,6 +14,7 @@ RHUL 自动签到脚本通过使用网页自动化来为 Royal Holloway 学生�
 - **系统时间同步检查**：检查系统时间是否与 NTP 服务器同步。
 - **自动更新功能**：检测脚本更新并提示用户更新。
 - **自动登录 + 2FA**：自动处理微软登录，选择“验证码”方式，并用本地保存的 TOTP 秘钥自动填充验证码。
+- **自动下载课表**：首次运行自动下载课表到 `ics/` 目录，无需手动获取 `.ics` 文件。
 - **Discord Webhook 通知（可选）**：配置 Webhook 后推送启动/停止、登录成功、签到成功等消息，并附带个人昵称。
 
 ## 前提条件
@@ -22,6 +24,8 @@ RHUL 自动签到脚本通过使用网页自动化来为 Royal Holloway 学生�
 3. **虚拟环境（推荐）**：在 Python 虚拟环境中运行脚本以避免依赖冲突。
 
 ## 安装
+
+在安装前请先确保已安装 Google Chrome：可前往 [下载页面](https://www.google.com/chrome/)（macOS 也可使用 `brew install --cask google-chrome`）。
 
 ### 步骤 1：克隆代码仓库
 
@@ -55,22 +59,13 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 步骤 5：创建 ICS 文件夹
+### 步骤 5：（可选）手动准备课表
 
-```bash
-mkdir ics
-```
+脚本现已在首次运行时自动下载课表到 `ics/`。仅当自动下载失败时，才需要手动准备：
 
-### 步骤 6：准备您的课表文件
-
-- 访问 [Royal Holloway 课表系统](https://intranet.royalholloway.ac.uk/students/study/timetable/your-timetable.aspx)
-- 选择 "Your Timetable" 并登录
-- 在左侧栏点击 "My Timetable"
-- 在 "View Timetable As" 下拉菜单中选择 `Calendar Download`
-- 点击 `View Timetable` 按钮跳转至下载页面
-- 在下载页面点击 `Android™ and others` 按钮获取下载链接
-- 在浏览器中粘贴下载链接以下载 `.ics` 文件
-- 将下载的 `.ics` 文件放置在脚本根目录的 `ics` 文件夹中
+- 访问 [Royal Holloway 课表系统](https://intranet.royalholloway.ac.uk/students/study/timetable/your-timetable.aspx) 并登录。
+- 选择 `Calendar Download`，点击 `View Timetable`，然后点击 `Android™ and others` 获取 `.ics` 链接。
+- 下载 `.ics` 文件，并放入项目根目录的 `ics` 文件夹（如无则新建）。
 
 ## 使用说明
 
@@ -106,7 +101,7 @@ mkdir ics
 
    > **✅ 自动登录 + 2FA 已完成**
    > 
-   > 现在脚本会自动处理微软登录和“验证码” MFA 流程，使用已保存的账号、密码和本地 TOTP 秘钥生成验证码。首次运行按引导完成账号/秘钥绑定和课表下载，之后登录与 2FA 都会自动完成。
+   > 现在脚本会自动处理微软登录和“验证码” MFA 流程，使用已保存的账号、密码和本地 TOTP 秘钥生成验证码。首次运行按引导完成账号/秘钥绑定；课表将自动下载。
 
 4. **快捷键说明**：
 
@@ -120,11 +115,14 @@ mkdir ics
 - **系统时间**：如果系统时间与 NTP 服务器不同步，脚本会提示您同步系统时钟。
 - **支持平台**：脚本支持 Windows、macOS 和 Linux 系统。
 
+### 多 Profile 使用
+
+目前未内置原生的多账号切换。如需使用多个账号，请为每个账号准备独立的项目副本（或独立的工作目录/虚拟环境），并分别保存各自的 `credentials.json`、`2fa_config.json` 与 `ics/` 数据。每个目录只运行一个账号实例，避免互相覆盖。
+
 > **🔐 安全提示 - 登录会话时长**
 > 
-> 根据学校的 2FA（双因素认证）策略，一次登录周期大约为 **一周左右**。
-> **强烈建议** 经常检查脚本状态以防缺勤。
-> 会话过期后可能需要手动重新登录。
+> ~~一次登录周期大约为一周，过期可能需要手动重新登录。~~
+> 现在已支持使用存储的账号 + TOTP 自动续期登录。会话会自动刷新；如学校调整 2FA 策略，请偶尔检查运行状态。
 
 ## 配置
 

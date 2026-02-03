@@ -3,7 +3,8 @@
 ---
 
 The RHUL Attendance Bot automates attendance marking for Royal Holloway students by using web automation. The script checks your calendar events, triggers attendance based on specified conditions, and provides real-time logging using Rich library for better visualization.
-![alt text]({8BA55B13-C622-4EB4-93F2-964AF83C7A9E}.png)
+![UI screenshot](assets/ui_screenshot.png)
+![Discord broadcast screenshot](assets/discord_bot_screenshot.png)
 ## Features
 
 - **Automated Attendance**: Automatically opens the attendance page and marks your attendance based on your calendar events.
@@ -13,6 +14,7 @@ The RHUL Attendance Bot automates attendance marking for Royal Holloway students
 - **System Time Synchronization Check**: Checks if the system time is synchronized with the NTP server.
 - **Auto-Update Feature**: Detects script updates and prompts the user to update.
 - **Auto Login with 2FA**: Handles Microsoft login, switches to verification code, and auto-fills TOTP from your saved secret.
+- **Automatic Timetable Download**: On first run, automatically fetches your ICS timetable into the `ics/` folder—no manual download needed.
 - **Discord Webhook Notifications (optional)**: Sends start/stop, login success, and attendance success messages with your profile name when a webhook URL is configured.
 
 ## Prerequisites
@@ -22,6 +24,8 @@ The RHUL Attendance Bot automates attendance marking for Royal Holloway students
 3. **Virtual Environment (Recommended)**: Run the script inside a Python virtual environment to avoid dependency conflicts.
 
 ## Installation
+
+Install Google Chrome if you don't have it yet: [download page](https://www.google.com/chrome/) (macOS users can also `brew install --cask google-chrome`).
 
 ### Step 1: Clone the Repository
 
@@ -55,22 +59,13 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Step 5: Create the ICS Folder
+### Step 5: (Optional) Prepare ICS Manually
 
-```bash
-mkdir ics
-```
+The bot now auto-downloads your timetable on first run and stores it in `ics/`. You only need manual prep if the auto download fails:
 
-### Step 6: Prepare Your Calendar File
-
-- Go to [Royal Holloway Timetable](https://intranet.royalholloway.ac.uk/students/study/timetable/your-timetable.aspx)
-- Select "Your Timetable" and log in
-- Click "My Timetable" from the left sidebar
-- In the "View Timetable As" dropdown, select `Calendar Download`
-- Click the `View Timetable` button to go to the download page
-- On the download page, click the `Android™ and others` button to get the download link
-- Paste the download link in your browser to download the `.ics` file
-- Place the downloaded `.ics` file in the `ics` folder located in the script's root directory
+- Go to [Royal Holloway Timetable](https://intranet.royalholloway.ac.uk/students/study/timetable/your-timetable.aspx) and log in.
+- Choose `Calendar Download`, click `View Timetable`, then `Android™ and others` to get the `.ics` link.
+- Download the `.ics` and place it into the `ics` folder at the project root (create it if missing).
 
 ## Usage
 
@@ -106,7 +101,7 @@ mkdir ics
 
    > **✅ Auto Login + 2FA**
    > 
-   > The bot now handles Microsoft login and the verification-code MFA flow automatically using your stored credentials and local TOTP secret. On first run, complete onboarding (credentials/secret + ICS download) as prompted; afterwards, login and 2FA are fully automatic.
+   > The bot now handles Microsoft login and the verification-code MFA flow automatically using your stored credentials and local TOTP secret. On first run, complete onboarding (credentials/secret); the timetable is downloaded automatically.
 
 4. **Keyboard Shortcuts**:
 
@@ -120,11 +115,14 @@ mkdir ics
 - **System Time**: If the system time is not synchronized with the NTP server, the script will prompt you to synchronize your system clock.
 - **Supported Platforms**: The script supports Windows, macOS, and Linux.
 
+### Multi-Profile Usage
+
+Native multi-profile switching is not built-in. If you need to run multiple accounts, use separate copies of the project (or separate working directories/venvs), each with its own `credentials.json`, `2fa_config.json`, and `ics/` data. Launch each instance independently; keep one profile per folder to avoid overwriting credentials.
+
 > **🔐 Security Note - Login Session Duration**
 > 
-> Due to the university's 2FA (Two-Factor Authentication) policy, a login session typically lasts about **one week**. 
-> It is **strongly recommended** to regularly check the script status to prevent missed attendance.
-> You may need to manually re-login after the session expires.
+> ~~A session typically lasts about one week; you may need to manually re-login after it expires.~~
+> The bot now auto-renews login with stored credentials + TOTP. Sessions are refreshed automatically; monitor occasionally in case the institution changes its 2FA policy.
 
 ## Configuration
 
