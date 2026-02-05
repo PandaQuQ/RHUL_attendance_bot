@@ -1,4 +1,4 @@
-name: Auto Tag Patch Version
+name: Auto Release
 
 on:
   push:
