@@ -32,6 +32,10 @@ def _prompt_update_with_timeout(timeout=10):
 
 def check_for_updates(logger=None, timeout=10):
     try:
+        if not os.path.isdir(os.path.join(os.getcwd(), ".git")):
+            if logger:
+                logger.info("Update check skipped (no git repo detected).", extra={"gray": True})
+            return
         local_commit = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
         remote_commit = subprocess.check_output(["git", "ls-remote", "origin", "HEAD"]).decode().split()[0]
         if local_commit != remote_commit:
@@ -51,6 +55,11 @@ def check_for_updates(logger=None, timeout=10):
         else:
             if logger:
                 logger.info("No updates found. Continuing execution.", extra={"gray": True})
+    except (FileNotFoundError, subprocess.CalledProcessError) as e:
+        if logger:
+            logger.info("Update check skipped (git not available).", extra={"gray": True})
+        else:
+            raise
     except Exception as e:
         if logger:
             logger.error(f"Failed to check for updates: {e}", exc_info=True)

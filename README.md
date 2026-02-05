@@ -32,13 +32,26 @@ The RHUL Attendance Bot automates attendance marking for Royal Holloway students
 
 Install Google Chrome if you don't have it yet: [download page](https://www.google.com/chrome/) (macOS users can also `brew install --cask google-chrome`).
 
+Choose one of the two modes below:
+
+1) **Recommended: Install via pip**
+2) **Run from source**
+
+### Mode 1: Install via pip (recommended)
+
+```bash
+pip install rhul-attendance-bot
+```
+
+### Mode 2: Run from source
+
 ### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/PandaQuQ/RHUL_attendance_bot.git
 ```
 
-### Step 2: Navigate to the Project Directory
+### Step 2: Navigate to the Project Directory (source install only)
 
 ```bash
 cd RHUL_attendance_bot
@@ -58,7 +71,7 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-### Step 4: Install Dependencies
+### Step 4: Install dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -94,23 +107,40 @@ The bot now auto-downloads your timetable on first run and stores it in `ics/`. 
 
 3. **Run the Script**:
 
-   #### On Windows:
+   #### From PyPI install:
    ```bash
-   python RHUL_attendance_bot.py
+   rhul-attendance-bot
    ```
 
-   #### On macOS/Linux:
+   #### From source:
    ```bash
-   python3 RHUL_attendance_bot.py
+   python RHUL_attendance_bot.py
    ```
 
    > **✅ Auto Login + 2FA**
    > 
    > The bot now handles Microsoft login and the verification-code MFA flow automatically using your stored credentials and local TOTP secret. On first run, complete onboarding (credentials/secret); the timetable is downloaded automatically.
 
-4. **Keyboard Shortcuts**:
+4. **Profile Selection**:
+
+    - Use `-user <profile_name>` to pick a specific profile, e.g.:
+       ```bash
+       rhul-attendance-bot -user Alice
+       ```
+      - If `-user` is not provided and profiles exist, the app will list them and ask you to choose.
+      - If no profiles exist, it starts onboarding automatically and then renames the profile folder to your Profile Nickname.
+
+5. **Cleanup (delete local data)**:
+
+    - Use `-clean` to remove all local app data under `~/.rhul_attendance_bot`:
+       ```bash
+       rhul-attendance-bot -clean
+       ```
+
+6. **Keyboard Shortcuts**:
 
    - **Manually Trigger the Next Event**: Press `[`, then `]`
+   - **Refresh Calendar (re-fetch ICS)**: Press `[`, then `c`
    - **Exit the Script**: Press `[`, then `q`
 
 ## Important Notes
@@ -122,7 +152,15 @@ The bot now auto-downloads your timetable on first run and stores it in `ics/`. 
 
 ### Multi-Profile Usage
 
-Native multi-profile switching is not built-in. If you need to run multiple accounts, use separate copies of the project (or separate working directories/venvs), each with its own `credentials.json`, `2fa_config.json`, and `ics/` data. Launch each instance independently; keep one profile per folder to avoid overwriting credentials.
+Profiles are stored under `~/.rhul_attendance_bot/profiles/<profile_name>`. Each profile has its own:
+
+- `credentials.json`
+- `2fa_config.json`
+- `ics/`
+- `chrome_user_data/`
+- `automation.log`
+
+Use `-user` to switch profiles at runtime.
 
 > **🔐 Security Note - Login Session Duration**
 > 
@@ -140,7 +178,7 @@ If an update is detected, the script will prompt you to update. You can choose t
 ## Troubleshooting
 
 1. **Chrome WebDriver Issues**: Make sure that the correct version of the ChromeDriver is being used. The script uses `webdriver-manager` to automatically manage ChromeDriver versions.
-2. **Dependency Issues**: If you encounter errors related to missing modules, ensure you have installed all dependencies listed in `requirements.txt`.
+2. **Dependency Issues**: If you encounter errors related to missing modules, reinstall via `pip install rhul-attendance-bot` or use `pip install -r requirements.txt` from source.
 3. **Virtual Environment Issues**: If you face issues while running the script, try setting up a fresh virtual environment and reinstalling the dependencies.
 
 ## TODO
@@ -151,10 +189,11 @@ Current focus / future ideas:
 - ✅ **Automatic Login**: Stored credentials + TOTP drive a fully automatic login flow.
 - ✅ **2FA Code Reading**: OTP is generated locally from your saved secret.
 - ✅ **Discord Webhook Bot**: Discord webhook notifications for attendance status, login, and lifecycle (optional; disable by leaving webhook URL empty)
+- ✅ **PyPI Release**: Package published and installable via `pip install rhul-attendance-bot`
 
 ## License
 
-This project is licensed under the MIT License with an additional clause. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 

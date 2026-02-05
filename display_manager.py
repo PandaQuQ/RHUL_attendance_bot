@@ -229,6 +229,7 @@ class DisplayManager:
 
                     instructions = Text.from_markup(
                         "Press [yellow][[/yellow] then [yellow]][/yellow] to manually trigger the next event\n"
+                        "Press [yellow][[/yellow] then [yellow]c[/yellow] to refresh the calendar\n"
                         "Press [yellow][[/yellow] then [yellow]q[/yellow] to exit the script",
                         justify="center",
                     )
