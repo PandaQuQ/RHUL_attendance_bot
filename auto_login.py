@@ -284,7 +284,7 @@ def first_time_setup(profile_name=None):
             )
             secret = secret_elem.text.strip()
             if secret:
-                bind(secret)
+                bind(secret, profile_name=profile_name)
                 save_config(
                     username,
                     password,
@@ -306,7 +306,7 @@ def first_time_setup(profile_name=None):
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[data-testid="verification-entercode-input"]'))
                 )
                 otp_input.clear()
-                otp = get_otp()
+                otp = get_otp(profile_name=profile_name)
                 otp_input.send_keys(otp)
                 print(f'Filled OTP: {otp}')
                 # Click '下一步' button to submit OTP
@@ -336,14 +336,14 @@ def start_driver():
     return driver
 
 
-def auto_login():
-    config = load_config()
-    creds = load_credentials()
+def auto_login(profile_name=None):
+    config = load_config(profile_name)
+    creds = load_credentials(profile_name)
     if not config or not creds or 'secret' not in config or 'username' not in creds or 'password' not in creds:
         print('Config or credentials missing/incomplete. Starting first-time setup...')
-        first_time_setup()
-        config = load_config()
-        creds = load_credentials()
+        first_time_setup(profile_name=profile_name)
+        config = load_config(profile_name)
+        creds = load_credentials(profile_name)
         if not config or not creds or 'secret' not in config or 'username' not in creds or 'password' not in creds:
             raise RuntimeError('Failed to create valid config or credentials file. Please retry.')
     username = creds['username']
@@ -364,7 +364,7 @@ def auto_login():
         time.sleep(2)
         # If OTP requested, fill it
         if 'Enter code' in driver.page_source or 'Verification code' in driver.page_source:
-            otp = get_otp()
+            otp = get_otp(profile_name=profile_name)
             # You will tell me the exact element for OTP input
             print(f'Auto-filling OTP: {otp}')
             # Example: driver.find_element(By.NAME, 'otc').send_keys(otp)
@@ -422,13 +422,13 @@ def login_with_credentials(driver, username, password):
             print(f"Exception in confirmation loop: {e}")
             break  # Button not present, stop loop
 
-def fill_otp(driver):
+def fill_otp(driver, profile_name=None):
     try:
         otp_input = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[data-testid="verification-entercode-input"]'))
         )
         otp_input.clear()
-        otp = get_otp()
+        otp = get_otp(profile_name=profile_name)
         otp_input.send_keys(otp)
         print(f'Filled OTP: {otp}')
         btn_otp_next = WebDriverWait(driver, 10).until(
@@ -509,7 +509,7 @@ def fill_ms_login(driver, username, password):
         return False
 
 
-def handle_mfa_code(driver):
+def handle_mfa_code(driver, profile_name=None):
     """Fallback path: use verification code instead of Authenticator app."""
     try:
         maybe_switch_to_login_iframe(driver)
@@ -594,7 +594,7 @@ def handle_mfa_code(driver):
             return False
 
         otp_input.clear()
-        otp = get_otp()
+        otp = get_otp(profile_name=profile_name)
         otp_input.send_keys(otp)
         print(f"Filled OTP: {otp}")
 
@@ -670,7 +670,7 @@ def renew_login(driver, expected_url=None, logger=None, profile_name=None):
         if ('login.microsoftonline.com' in current_url) or ('mysignins.microsoft.com' in current_url) or ('loginfmt' in page_src):
             _log(logger, logging.INFO, "Detected Microsoft login page; attempting auto login...", gray=True)
             fill_ms_login(driver, username, password)
-            handle_mfa_code(driver)
+            handle_mfa_code(driver, profile_name=profile_name)
             handle_kmsi(driver)
         else:
             _log(logger, logging.INFO, "No Microsoft login page detected; skipping renew_login.")
