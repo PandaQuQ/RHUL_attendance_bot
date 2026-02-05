@@ -156,6 +156,9 @@ class DisplayManager:
 
     def run(self, exit_event):
         git_commit, git_date, git_count = self.get_git_info()
+        git_from_repo = True
+        if git_commit == "unknown" or git_date == "unknown" or git_date == "release":
+            git_from_repo = False
         try:
             git_count_display = str(int(git_count) - 1)
         except Exception:
@@ -235,9 +238,14 @@ class DisplayManager:
                     )
                     shortcut_instructions = Align.center(instructions, vertical="middle")
 
-                    version_number_text = Align.center(
-                        f"This is the No.[red]{git_count_display}[/red] version", vertical="middle"
-                    )
+                    if git_from_repo:
+                        version_number_text = Align.center(
+                            f"This is the No.[red]{git_count_display}[/red] version", vertical="middle"
+                        )
+                    else:
+                        version_number_text = Align.center(
+                            f"Version: {git_count}", vertical="middle"
+                        )
                     nick_color = self._nickname_color()
                     nickname_text = Align.center(
                         f"[bold]{'[white]Profile:[/]'} [{nick_color}]{self.profile_nickname}[/]", vertical="middle"
@@ -248,10 +256,13 @@ class DisplayManager:
                     broadcast_text = Align.center(
                         f"Discord Broadcast: {broadcast_status}", vertical="middle"
                     )
-                    version_text = Align.center(
-                        f"[bright_black]Commit: {git_commit} ({git_date})[/bright_black]",
-                        vertical="middle",
-                    )
+                    if git_from_repo:
+                        version_text = Align.center(
+                            f"[bright_black]Commit: {git_commit} ({git_date})[/bright_black]",
+                            vertical="middle",
+                        )
+                    else:
+                        version_text = None
 
                     layout = Table.grid(expand=True)
                     layout.add_row(info_table)
@@ -259,7 +270,8 @@ class DisplayManager:
                     layout.add_row(nickname_text)
                     layout.add_row(broadcast_text)
                     layout.add_row(shortcut_instructions)
-                    layout.add_row(version_text)
+                    if version_text is not None:
+                        layout.add_row(version_text)
                     layout.add_row(version_number_text)
 
                     live.update(layout)
