@@ -175,18 +175,10 @@ Profile 数据存放在 `~/.rhul_attendance_bot/profiles/<profile_name>` 下，�
 
 如果检测到更新，脚本会提示您是否更新。可以输入 `y` 更新，也可以输入 `n` 跳过更新。
 
-## 自动 Release 钩子（开发用）
+## GitHub Actions 自动打 tag
 
-仓库包含一个 Git 钩子：每次 commit 自动创建新 tag，并将小版本号（patch）+1。
-
-本地启用方式：
-
-```bash
-git config core.hooksPath .githooks
-chmod +x .githooks/post-commit
-```
-
-启用后，每次 commit 会生成类似 `v1.2.3` → `v1.2.4` 的新 tag。
+如果不想使用本地 git hooks，可以使用 GitHub Actions 在每次 push 到 `main` 时自动生成 patch 新 tag。
+工作流文件： [.github/workflows/auto-tag.yml](.github/workflows/auto-tag.yml)
 
 ## 常见问题
 

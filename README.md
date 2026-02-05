@@ -175,18 +175,10 @@ To configure the script, modify the relevant parameters inside the code or creat
 
 If an update is detected, the script will prompt you to update. You can choose to update by typing `y` or skip it by typing `n`.
 
-## Auto-Release Hook (Dev)
+## Auto-Tag via GitHub Actions
 
-This repo includes a Git hook that auto-creates a new tag on every commit by bumping the patch version (vMAJOR.MINOR.PATCH).
-
-Enable it locally:
-
-```bash
-git config core.hooksPath .githooks
-chmod +x .githooks/post-commit
-```
-
-After that, each commit will generate a new tag like `v1.2.3` → `v1.2.4`.
+If you prefer not to use local git hooks, this repo includes a GitHub Action that auto-creates a new patch tag on each push to `main`.
+See workflow: [.github/workflows/auto-tag.yml](.github/workflows/auto-tag.yml)
 
 ## Troubleshooting
 
