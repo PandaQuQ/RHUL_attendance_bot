@@ -818,6 +818,7 @@ def main():
 
     def update_display(exit_event):
         git_commit, git_date, git_count = get_git_info()
+        git_commit = git_commit -1
         nickname = profile_nickname
         broadcast_enabled = False
         try:
