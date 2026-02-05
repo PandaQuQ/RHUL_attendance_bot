@@ -146,11 +146,14 @@ def first_time_setup(profile_name=None):
         username = input('Enter your Microsoft username: ')
         password = input('Enter your Microsoft password: ')
     if not profile_nickname:
-        while True:
-            profile_nickname = input('Enter your profile nickname: ').strip()
-            if profile_nickname:
-                break
-            print('Profile nickname cannot be empty. Please enter again.')
+        if profile_name:
+            profile_nickname = profile_name
+        else:
+            while True:
+                profile_nickname = input('Enter your profile nickname: ').strip()
+                if profile_nickname:
+                    break
+                print('Profile nickname cannot be empty. Please enter again.')
         discord_webhook_url = input('Enter your Discord webhook URL (leave blank to disable): ').strip()
         enable_discord_webhook = bool(discord_webhook_url)
 

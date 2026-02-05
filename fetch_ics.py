@@ -14,6 +14,7 @@ TIMETABLE_URL = 'https://webtimetables.royalholloway.ac.uk/'
 
 def load_credentials(profile_name=None):
     credentials_path = get_credentials_path(profile_name)
+    print(f"[fetch_ics] Loading credentials from: {credentials_path}")
     if not os.path.exists(credentials_path):
         raise RuntimeError('Missing credentials.json')
     with open(credentials_path, 'r') as f:

@@ -122,17 +122,21 @@ def main():
     ics_folder = get_ics_dir(profile_name)
     ics_file = os.path.join(ics_folder, 'student_timetable.ics')
     first_run = False
-    # Check credentials
-    creds_ok = False
-    if os.path.exists(credentials_path):
+    def has_credentials(name):
+        path = get_credentials_path(name)
+        if not os.path.exists(path):
+            return False
         try:
             import json
-            with open(credentials_path, 'r') as f:
+            with open(path, 'r') as f:
                 creds = json.load(f)
-            if 'username' in creds and 'password' in creds and creds['username'] and creds['password']:
-                creds_ok = True
+            return bool(creds.get('username') and creds.get('password'))
         except Exception:
-            creds_ok = False
+            return False
+    # Check credentials
+    creds_ok = False
+    if has_credentials(profile_name):
+        creds_ok = True
     # Check timetable
     timetable_ok = os.path.exists(ics_file)
     if not creds_ok or not timetable_ok:
@@ -155,6 +159,13 @@ def main():
             profiles_after = list_profiles()
             if len(profiles_after) == 1:
                 profile_name = profiles_after[0]
+        # Ensure we have a valid profile with credentials before fetching timetable
+        if not has_credentials(profile_name):
+            candidates = [p for p in list_profiles() if has_credentials(p)]
+            if len(candidates) == 1:
+                profile_name = candidates[0]
+            elif candidates:
+                profile_name = prompt_select_profile()
         # Run fetch_ics.py to get timetable
         subprocess.run([sys.executable, os.path.join(script_dir, 'fetch_ics.py'), '--user', profile_name])
 
@@ -497,6 +508,14 @@ def main():
             data = {}
         if data.get('profile_nickname'):
             return data.get('profile_nickname')
+        if profile_name:
+            data['profile_nickname'] = profile_name
+            try:
+                with open(credentials_path, 'w') as f:
+                    json.dump(data, f)
+            except Exception:
+                pass
+            return profile_name
         while True:
             nickname = input('Enter your profile nickname: ').strip()
             if nickname:
@@ -520,9 +539,11 @@ def main():
             nickname = data.get('profile_nickname')
             if nickname:
                 return nickname
+            if profile_name:
+                return profile_name
             return "Not set"
         except Exception:
-            return "Not set"
+            return profile_name or "Not set"
 
     ensure_profile_nickname()
     profile_nickname = load_profile_nickname()
