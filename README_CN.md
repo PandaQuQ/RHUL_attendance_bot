@@ -180,6 +180,9 @@ Profile 数据存放在 `~/.rhul_attendance_bot/profiles/<profile_name>` 下，�
 如果不想使用本地 git hooks，可以使用 GitHub Actions 在每次 push 到 `main` 时自动生成 patch 新 tag。
 工作流文件： [.github/workflows/auto-tag.yml](.github/workflows/auto-tag.yml)
 
+每个 tag 会触发发布工作流，自动创建 GitHub Release 并上传 PyPI：
+[.github/workflows/publish.yml](.github/workflows/publish.yml)
+
 ## 常见问题
 
 1. **Chrome WebDriver 问题**：确保使用的是正确版本的 ChromeDriver。脚本使用 `webdriver-manager` 自动管理 ChromeDriver 版本。

@@ -180,6 +180,9 @@ If an update is detected, the script will prompt you to update. You can choose t
 If you prefer not to use local git hooks, this repo includes a GitHub Action that auto-creates a new patch tag on each push to `main`.
 See workflow: [.github/workflows/auto-tag.yml](.github/workflows/auto-tag.yml)
 
+Each tag then triggers the publish workflow, which creates a GitHub Release and uploads the package to PyPI:
+[.github/workflows/publish.yml](.github/workflows/publish.yml)
+
 ## Troubleshooting
 
 1. **Chrome WebDriver Issues**: Make sure that the correct version of the ChromeDriver is being used. The script uses `webdriver-manager` to automatically manage ChromeDriver versions.
