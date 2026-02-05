@@ -137,7 +137,25 @@ The bot now auto-downloads your timetable on first run and stores it in `ics/`. 
        rhul-attendance-bot -clean
        ```
 
-6. **Keyboard Shortcuts**:
+6. **List profiles**:
+
+    - Use `-l` to show all existing profiles:
+       ```bash
+       rhul-attendance-bot -l
+       ```
+
+7. **Delete a profile**:
+
+    - Clear cache only (Chrome cache + ICS) for a profile:
+       ```bash
+       rhul-attendance-bot -d Alice
+       ```
+    - Full delete a profile folder:
+       ```bash
+       rhul-attendance-bot -d -f Alice
+       ```
+
+8. **Keyboard Shortcuts**:
 
    - **Manually Trigger the Next Event**: Press `[`, then `]`
    - **Refresh Calendar (re-fetch ICS)**: Press `[`, then `c`

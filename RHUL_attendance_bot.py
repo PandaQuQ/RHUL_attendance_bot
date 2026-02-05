@@ -90,7 +90,50 @@ def main():
     parser = argparse.ArgumentParser(description="RHUL attendance bot")
     parser.add_argument("-user", "--user", dest="profile", default=None, help="Start with profile name")
     parser.add_argument("-clean", action="store_true", help="Delete all local app data")
+    parser.add_argument("-d", "--delete-profile", dest="delete_profile", action="store_true", help="Delete a profile's data")
+    parser.add_argument("-f", "--full", dest="delete_full", action="store_true", help="Full delete a profile folder (use with -d)")
+    parser.add_argument("-l", "--list-profiles", dest="list_profiles", action="store_true", help="List existing profiles")
+    parser.add_argument("delete_target", nargs="?", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.list_profiles:
+        profiles = list_profiles()
+        if profiles:
+            print("Profiles:")
+            for name in profiles:
+                print(f"  - {name}")
+        else:
+            print("No profiles found.")
+        return
+    if args.delete_profile:
+        profile_target = args.delete_target
+        if not profile_target:
+            print("Please provide a profile name.")
+            return
+        if not profile_exists(profile_target):
+            print("Profile not exist.")
+            return
+        if args.delete_full:
+            profile_dir = get_profile_dir(profile_target)
+            try:
+                shutil.rmtree(profile_dir, ignore_errors=True)
+            except Exception:
+                pass
+            print(f"Profile deleted: {profile_target}")
+        else:
+            ics_dir = get_ics_dir(profile_target)
+            chrome_dir = get_chrome_user_data_dir(profile_target)
+            try:
+                if os.path.isdir(ics_dir):
+                    shutil.rmtree(ics_dir, ignore_errors=True)
+            except Exception:
+                pass
+            try:
+                if os.path.isdir(chrome_dir):
+                    shutil.rmtree(chrome_dir, ignore_errors=True)
+            except Exception:
+                pass
+            print(f"Profile cache cleared (ics + chrome): {profile_target}")
+        return
     if args.clean:
         deleted = delete_app_data()
         if deleted:
@@ -617,11 +660,14 @@ def main():
         git_commit, git_date, git_count = get_git_info()
 
         if broadcaster:
-            try:
-                version_count = str(int(git_count) - 1)
-            except Exception:
-                version_count = git_count
-            version_label = f"No.{version_count} version"
+            if git_commit == "unknown" or git_date in ("unknown", "release") or git_count == "unknown":
+                version_label = f"Version: {git_count}, pip"
+            else:
+                try:
+                    version_count = str(int(git_count) - 1)
+                except Exception:
+                    version_count = git_count
+                version_label = f"No.{version_count} version, source code"
             broadcaster.notify_bot_started(version_label=version_label)
 
         # Start threads with exit_event

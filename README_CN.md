@@ -137,7 +137,25 @@ pip install -r requirements.txt
        rhul-attendance-bot -clean
        ```
 
-6. **快捷键说明**：
+6. **列出 Profile 列表**：
+
+    - 使用 `-l` 查看当前已有的 Profile：
+       ```bash
+       rhul-attendance-bot -l
+       ```
+
+7. **删除指定 Profile**：
+
+    - 仅清理缓存（Chrome cache + ICS）：
+       ```bash
+       rhul-attendance-bot -d 用户1
+       ```
+    - 完整删除 Profile 文件夹：
+       ```bash
+       rhul-attendance-bot -d -f 用户1
+       ```
+
+8. **快捷键说明**：
 
    - **手动触发下一个事件**：按下 `[` 然后按 `]`
    - **刷新课表（重新获取 ICS）**：按下 `[` 然后按 `c`
