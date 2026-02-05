@@ -3,6 +3,7 @@
 import os
 import json
 import time
+import logging
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -106,6 +107,19 @@ def click_with_retries(driver, candidates, attempts=6, delay=1.0):
         time.sleep(delay)
     print("click_with_retries exhausted without a click")
     return False
+
+
+def _log(logger, level, message, gray=False):
+    if logger:
+        try:
+            if gray:
+                logger.log(level, message, extra={"gray": True})
+            else:
+                logger.log(level, message)
+            return
+        except Exception:
+            pass
+    print(message)
 
 
 def first_time_setup():
@@ -623,11 +637,11 @@ def handle_kmsi(driver):
     return False
 
 
-def renew_login(driver, expected_url=None):
+def renew_login(driver, expected_url=None, logger=None):
     """Non-first login: fill credentials, handle MFA, KMSI."""
     creds = load_credentials()
     if not creds or 'username' not in creds or 'password' not in creds:
-        print('credentials.json missing username/password; cannot auto-login.')
+        _log(logger, logging.ERROR if logger else logging.INFO, 'credentials.json missing username/password; cannot auto-login.')
         return False
     username = creds['username']
     password = creds['password']
@@ -636,25 +650,79 @@ def renew_login(driver, expected_url=None):
         current_url = driver.current_url
         page_src = driver.page_source
         if ('login.microsoftonline.com' in current_url) or ('mysignins.microsoft.com' in current_url) or ('loginfmt' in page_src):
-            print("Detected Microsoft login page; attempting auto login...")
+            _log(logger, logging.INFO, "Detected Microsoft login page; attempting auto login...")
             fill_ms_login(driver, username, password)
             handle_mfa_code(driver)
             handle_kmsi(driver)
         else:
-            print("No Microsoft login page detected; skipping renew_login.")
+            _log(logger, logging.INFO, "No Microsoft login page detected; skipping renew_login.")
             return True
 
         if expected_url:
             try:
                 WebDriverWait(driver, 60).until(EC.url_contains(expected_url))
-                print("Login detected via URL match.")
+                _log(logger, logging.INFO, "Login detected via URL match.")
                 return True
             except Exception:
-                print("Login not detected within timeout.")
+                _log(logger, logging.ERROR if logger else logging.INFO, "Login not detected within timeout.")
                 return False
         return True
     except Exception as e:
-        print(f"renew_login failed: {e}")
+        _log(logger, logging.ERROR if logger else logging.INFO, f"renew_login failed: {e}")
+        return False
+
+
+def verify_login(driver, expected_url, max_wait_minutes=30, logger=None):
+    initial_wait = 3
+    periodic_wait = 10
+    max_wait_seconds = max_wait_minutes * 60
+    elapsed_time = 0
+
+    time.sleep(initial_wait)
+    current_url = driver.current_url
+
+    if current_url == expected_url:
+        _log(logger, logging.INFO, "Already logged in.")
+        return True
+    else:
+        _log(logger, logging.INFO, "Need to login.")
+
+    while current_url != expected_url and elapsed_time < max_wait_seconds:
+        time.sleep(periodic_wait)
+        elapsed_time += periodic_wait
+        current_url = driver.current_url
+        if current_url == expected_url:
+            _log(logger, logging.INFO, "Login detected.")
+            return True
+        else:
+            _log(logger, logging.INFO, "Waiting for login...")
+
+    _log(logger, logging.ERROR if logger else logging.INFO, f"Login not detected after {max_wait_minutes} minutes.")
+    return False
+
+
+def attempt_login(driver, expected_url, broadcaster=None, logger=None):
+    """Try automatic MS login using stored credentials and OTP."""
+    try:
+        try:
+            WebDriverWait(driver, 6).until(EC.presence_of_element_located((By.ID, "pbid-blockFoundHappeningNowAttending")))
+            _log(logger, logging.INFO, "Existing session is valid; skipping renew_login.", gray=True)
+            return True
+        except Exception:
+            _log(logger, logging.INFO, "Session check did not confirm login; attempting renew_login.")
+
+        result = renew_login(driver, expected_url, logger=logger)
+        if result:
+            verified = verify_login(driver, expected_url, max_wait_minutes=5, logger=logger)
+            if verified and broadcaster:
+                try:
+                    broadcaster.notify_renew_login_success()
+                except Exception:
+                    pass
+            return verified
+        return False
+    except Exception as e:
+        _log(logger, logging.ERROR if logger else logging.INFO, f"Auto-login attempt failed: {e}")
         return False
     
 if __name__ == '__main__':
