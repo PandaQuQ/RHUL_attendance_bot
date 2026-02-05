@@ -144,6 +144,12 @@ def main():
         # Run auto_login.py for first-time login
         if profiles_before:
             subprocess.run([sys.executable, os.path.join(script_dir, 'auto_login.py'), '--user', profile_name])
+            profiles_after = list_profiles()
+            if not profile_exists(profile_name):
+                if len(profiles_after) == 1:
+                    profile_name = profiles_after[0]
+                else:
+                    profile_name = prompt_select_profile()
         else:
             subprocess.run([sys.executable, os.path.join(script_dir, 'auto_login.py')])
             profiles_after = list_profiles()
@@ -483,11 +489,12 @@ def main():
         return str(delta).split('.')[0]
 
     def ensure_profile_nickname():
+        data = {}
         try:
             with open(credentials_path, 'r') as f:
                 data = json.load(f)
         except Exception:
-            return None
+            data = {}
         if data.get('profile_nickname'):
             return data.get('profile_nickname')
         while True:
@@ -522,14 +529,19 @@ def main():
     broadcaster = DiscordBroadcaster(credentials_path=credentials_path, logger=logger, profile_name=profile_nickname)
 
     def get_git_info():
-        """Return (hash, date, count) for current HEAD; fallback to unknown."""
+        """Return (hash, date, count) for current HEAD; fallback to package version."""
         try:
             commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd=script_dir).decode().strip()
             commit_date = subprocess.check_output(['git', 'show', '-s', '--format=%cd', '--date=iso-strict', 'HEAD'], cwd=script_dir).decode().strip()
             commit_count = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD'], cwd=script_dir).decode().strip()
             return commit, commit_date, commit_count
         except Exception:
-            return "unknown", "unknown", "unknown"
+            try:
+                from importlib import metadata
+                pkg_version = metadata.version("rhul-attendance-bot")
+                return f"v{pkg_version}", "release", pkg_version
+            except Exception:
+                return "unknown", "unknown", "unknown"
 
     def get_attendance_count():
         with counter_lock:
