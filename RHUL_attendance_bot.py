@@ -886,15 +886,32 @@ def main():
             logger.error(f"Failed to check system time: {e}", exc_info=True)
 
     def check_for_updates():
+        def prompt_update_with_timeout(timeout=10):
+            user_input = {'val': None}
+
+            def _reader():
+                try:
+                    user_input['val'] = input().strip().lower()
+                except Exception:
+                    user_input['val'] = None
+
+            t = threading.Thread(target=_reader, daemon=True)
+            t.start()
+            for remaining in range(timeout, 0, -1):
+                if user_input['val'] is not None:
+                    break
+                print(f"\rA new update is available. Update now? (y/n) Auto-skip in {remaining}s: ", end='', flush=True)
+                time.sleep(1)
+            print()  # move to next line after countdown/input
+            return user_input['val']
+
         try:
             local_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
             remote_commit = subprocess.check_output(['git', 'ls-remote', 'origin', 'HEAD']).decode().split()[0]
             if local_commit != remote_commit:
                 logger.info("New update detected.")
-                # Prompt the user in the console
-                print("A new update is available. Do you want to update now? (y/n): ", end='')
-                user_input = input().strip().lower()
-                if user_input == '' or user_input == 'y':
+                user_input = prompt_update_with_timeout(timeout=10)
+                if user_input in ('', 'y', 'yes'):
                     logger.info("Updating the script...")
                     subprocess.check_call(['git', 'pull'])
                     logger.info("Update successful. Restarting the script...")
