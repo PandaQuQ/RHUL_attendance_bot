@@ -22,7 +22,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Create next patch tag
+      - name: Auto bump patch tag
         run: |
           latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n 1 || true)
           if [ -z "$latest_tag" ]; then
@@ -54,7 +54,7 @@ jobs:
       - name: Install build tools
         run: python -m pip install --upgrade pip build twine
 
-      - name: Sync version from tag
+      - name: Sync package version
         run: |
           python - <<'PY'
           import os
@@ -75,10 +75,10 @@ jobs:
           print(f"Set version to {version}")
           PY
 
-      - name: Build package
+      - name: Build distribution
         run: python -m build
 
-      - name: Create GitHub Release
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.NEW_TAG }}
