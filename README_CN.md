@@ -175,6 +175,19 @@ Profile 数据存放在 `~/.rhul_attendance_bot/profiles/<profile_name>` 下，�
 
 如果检测到更新，脚本会提示您是否更新。可以输入 `y` 更新，也可以输入 `n` 跳过更新。
 
+## 自动 Release 钩子（开发用）
+
+仓库包含一个 Git 钩子：每次 commit 自动创建新 tag，并将小版本号（patch）+1。
+
+本地启用方式：
+
+```bash
+git config core.hooksPath .githooks
+chmod +x .githooks/post-commit
+```
+
+启用后，每次 commit 会生成类似 `v1.2.3` → `v1.2.4` 的新 tag。
+
 ## 常见问题
 
 1. **Chrome WebDriver 问题**：确保使用的是正确版本的 ChromeDriver。脚本使用 `webdriver-manager` 自动管理 ChromeDriver 版本。

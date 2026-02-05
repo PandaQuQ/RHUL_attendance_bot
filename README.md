@@ -175,6 +175,19 @@ To configure the script, modify the relevant parameters inside the code or creat
 
 If an update is detected, the script will prompt you to update. You can choose to update by typing `y` or skip it by typing `n`.
 
+## Auto-Release Hook (Dev)
+
+This repo includes a Git hook that auto-creates a new tag on every commit by bumping the patch version (vMAJOR.MINOR.PATCH).
+
+Enable it locally:
+
+```bash
+git config core.hooksPath .githooks
+chmod +x .githooks/post-commit
+```
+
+After that, each commit will generate a new tag like `v1.2.3` → `v1.2.4`.
+
 ## Troubleshooting
 
 1. **Chrome WebDriver Issues**: Make sure that the correct version of the ChromeDriver is being used. The script uses `webdriver-manager` to automatically manage ChromeDriver versions.
