@@ -532,6 +532,14 @@ def main():
     def attempt_login(driver, expected_url):
         """Try automatic MS login using stored credentials and OTP."""
         try:
+            # Quick session check: if target page already reachable, skip renew_login to avoid redundant MFA.
+            try:
+                WebDriverWait(driver, 6).until(EC.presence_of_element_located((By.ID, "pbid-blockFoundHappeningNowAttending")))
+                logger.info("Existing session is valid; skipping renew_login.")
+                return True
+            except Exception:
+                logger.info("Session check did not confirm login; attempting renew_login.")
+
             result = renew_login(driver, expected_url)
             if result:
                 verified = verify_login(driver, expected_url, max_wait_minutes=5)
