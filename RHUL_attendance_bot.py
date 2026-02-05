@@ -518,7 +518,11 @@ def main():
         git_commit, git_date, git_count = get_git_info()
 
         if broadcaster:
-            version_label = f"No.{git_count} version"
+            try:
+                version_count = str(int(git_count) - 1)
+            except Exception:
+                version_count = git_count
+            version_label = f"No.{version_count} version"
             broadcaster.notify_bot_started(version_label=version_label)
 
         # Start threads with exit_event
