@@ -156,9 +156,9 @@ class DisplayManager:
 
     def run(self, exit_event):
         git_commit, git_date, git_count = self.get_git_info()
-        git_from_repo = True
-        if git_commit == "unknown" or git_date == "unknown" or git_date == "release":
-            git_from_repo = False
+        is_git_info = True
+        if git_commit == "unknown" or git_date in ("unknown", "release") or git_count == "unknown":
+            is_git_info = False
         try:
             git_count_display = str(int(git_count) - 1)
         except Exception:
@@ -238,13 +238,14 @@ class DisplayManager:
                     )
                     shortcut_instructions = Align.center(instructions, vertical="middle")
 
-                    if git_from_repo:
+                    if is_git_info:
                         version_number_text = Align.center(
                             f"This is the No.[red]{git_count_display}[/red] version", vertical="middle"
                         )
                     else:
+                        version_label = git_count if git_count not in ("", "unknown") else git_commit.lstrip("v")
                         version_number_text = Align.center(
-                            f"Version: {git_count}", vertical="middle"
+                            f"Version: {version_label}", vertical="middle"
                         )
                     nick_color = self._nickname_color()
                     nickname_text = Align.center(
@@ -256,7 +257,7 @@ class DisplayManager:
                     broadcast_text = Align.center(
                         f"Discord Broadcast: {broadcast_status}", vertical="middle"
                     )
-                    if git_from_repo:
+                    if is_git_info:
                         version_text = Align.center(
                             f"[bright_black]Commit: {git_commit} ({git_date})[/bright_black]",
                             vertical="middle",
@@ -270,7 +271,7 @@ class DisplayManager:
                     layout.add_row(nickname_text)
                     layout.add_row(broadcast_text)
                     layout.add_row(shortcut_instructions)
-                    if version_text is not None:
+                    if version_text:
                         layout.add_row(version_text)
                     layout.add_row(version_number_text)
 
