@@ -818,7 +818,10 @@ def main():
 
     def update_display(exit_event):
         git_commit, git_date, git_count = get_git_info()
-        git_commit = git_commit -1
+        try:
+            git_count_display = str(int(git_count) - 1)
+        except Exception:
+            git_count_display = git_count
         nickname = profile_nickname
         broadcast_enabled = False
         try:
@@ -853,7 +856,7 @@ def main():
                 )
                 shortcut_instructions = Align.center(instructions, vertical="middle")
 
-                version_number_text = Align.center(f"This is the No.[red]{git_count}[/red] version", vertical="middle")
+                version_number_text = Align.center(f"This is the No.[red]{git_count_display}[/red] version", vertical="middle")
                 nickname_text = Align.center(f"Profile: {nickname}", vertical="middle")
                 broadcast_text = Align.center(f"Discord Broadcast: {'Enabled' if broadcast_enabled else 'Disabled'}", vertical="middle")
                 version_text = Align.center(f"Commit: {git_commit} ({git_date})", vertical="middle")
