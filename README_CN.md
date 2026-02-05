@@ -177,11 +177,8 @@ Profile 数据存放在 `~/.rhul_attendance_bot/profiles/<profile_name>` 下，�
 
 ## GitHub Actions 自动打 tag
 
-如果不想使用本地 git hooks，可以使用 GitHub Actions 在每次 push 到 `main` 时自动生成 patch 新 tag。
+如果不想使用本地 git hooks，可以使用 GitHub Actions 在每次 push 到 `main` 时自动生成 patch 新 tag，并自动创建 GitHub Release 和上传 PyPI。
 工作流文件： [.github/workflows/auto-tag.yml](.github/workflows/auto-tag.yml)
-
-每个 tag 会触发发布工作流，自动创建 GitHub Release 并上传 PyPI：
-[.github/workflows/publish.yml](.github/workflows/publish.yml)
 
 ## 常见问题
 
