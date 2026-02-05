@@ -12,15 +12,21 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from local_2fa import bind, get_otp
-
-CONFIG_FILE = '2fa_config.json'
-CREDENTIALS_FILE = 'credentials.json'
+from app_paths import (
+    get_2fa_config_path,
+    get_credentials_path,
+    prompt_select_profile,
+    profile_exists,
+    rename_profile,
+)
 SECURITY_INFO_URL = 'https://mysignins.microsoft.com/security-info'
 LOGIN_URL = 'https://mysignins.microsoft.com/security-info'
 
 
-def save_config(username, password, secret, profile_nickname=None, discord_webhook_url=None, enable_discord_webhook=None):
-    with open(CONFIG_FILE, 'w') as f:
+def save_config(username, password, secret, profile_nickname=None, discord_webhook_url=None, enable_discord_webhook=None, profile_name=None):
+    config_path = get_2fa_config_path(profile_name)
+    credentials_path = get_credentials_path(profile_name)
+    with open(config_path, 'w') as f:
         json.dump({'secret': secret}, f)
     payload = {'username': username, 'password': password}
     if profile_nickname:
@@ -30,26 +36,28 @@ def save_config(username, password, secret, profile_nickname=None, discord_webho
         payload['enable_discord_webhook'] = bool(discord_webhook_url) if enable_discord_webhook is None else bool(enable_discord_webhook)
     try:
         # Preserve any existing fields
-        with open(CREDENTIALS_FILE, 'r') as f:
+        with open(credentials_path, 'r') as f:
             existing = json.load(f)
         existing.update(payload)
         payload = existing
     except Exception:
         pass
-    with open(CREDENTIALS_FILE, 'w') as f:
+    with open(credentials_path, 'w') as f:
         json.dump(payload, f)
 
 
-def load_config():
-    if not os.path.exists(CONFIG_FILE):
+def load_config(profile_name=None):
+    config_path = get_2fa_config_path(profile_name)
+    if not os.path.exists(config_path):
         return None
-    with open(CONFIG_FILE, 'r') as f:
+    with open(config_path, 'r') as f:
         return json.load(f)
 
-def load_credentials():
-    if not os.path.exists(CREDENTIALS_FILE):
+def load_credentials(profile_name=None):
+    credentials_path = get_credentials_path(profile_name)
+    if not os.path.exists(credentials_path):
         return None
-    with open(CREDENTIALS_FILE, 'r') as f:
+    with open(credentials_path, 'r') as f:
         return json.load(f)
 
 
@@ -122,8 +130,8 @@ def _log(logger, level, message, gray=False):
     print(message)
 
 
-def first_time_setup():
-    creds = load_credentials()
+def first_time_setup(profile_name=None):
+    creds = load_credentials(profile_name)
     profile_nickname = None
     discord_webhook_url = None
     enable_discord_webhook = None
@@ -155,7 +163,13 @@ def first_time_setup():
         payload['discord_webhook_url'] = discord_webhook_url
         payload['enable_discord_webhook'] = bool(discord_webhook_url) if enable_discord_webhook is None else bool(enable_discord_webhook)
 
-    with open(CREDENTIALS_FILE, 'w') as f:
+    # Align profile folder name to profile nickname if needed
+    if profile_name and profile_nickname and profile_name != profile_nickname:
+        rename_profile(profile_name, profile_nickname)
+        profile_name = profile_nickname
+
+    credentials_path = get_credentials_path(profile_name)
+    with open(credentials_path, 'w') as f:
         json.dump(payload, f)
     print('Credentials saved. Starting automated login and 2FA binding...')
     driver = start_driver()
@@ -275,6 +289,7 @@ def first_time_setup():
                     profile_nickname,
                     discord_webhook_url=discord_webhook_url,
                     enable_discord_webhook=enable_discord_webhook,
+                    profile_name=profile_name,
                 )
                 print(f'Authenticator bound and secret saved: {secret}')
                 # Click '下一步' button after copying secret
@@ -637,9 +652,9 @@ def handle_kmsi(driver):
     return False
 
 
-def renew_login(driver, expected_url=None, logger=None):
+def renew_login(driver, expected_url=None, logger=None, profile_name=None):
     """Non-first login: fill credentials, handle MFA, KMSI."""
-    creds = load_credentials()
+    creds = load_credentials(profile_name)
     if not creds or 'username' not in creds or 'password' not in creds:
         _log(logger, logging.ERROR if logger else logging.INFO, 'credentials.json missing username/password; cannot auto-login.')
         return False
@@ -650,7 +665,7 @@ def renew_login(driver, expected_url=None, logger=None):
         current_url = driver.current_url
         page_src = driver.page_source
         if ('login.microsoftonline.com' in current_url) or ('mysignins.microsoft.com' in current_url) or ('loginfmt' in page_src):
-            _log(logger, logging.INFO, "Detected Microsoft login page; attempting auto login...")
+            _log(logger, logging.INFO, "Detected Microsoft login page; attempting auto login...", gray=True)
             fill_ms_login(driver, username, password)
             handle_mfa_code(driver)
             handle_kmsi(driver)
@@ -661,7 +676,7 @@ def renew_login(driver, expected_url=None, logger=None):
         if expected_url:
             try:
                 WebDriverWait(driver, 60).until(EC.url_contains(expected_url))
-                _log(logger, logging.INFO, "Login detected via URL match.")
+                _log(logger, logging.INFO, "Login detected via URL match.", gray=True)
                 return True
             except Exception:
                 _log(logger, logging.ERROR if logger else logging.INFO, "Login not detected within timeout.")
@@ -682,7 +697,7 @@ def verify_login(driver, expected_url, max_wait_minutes=30, logger=None):
     current_url = driver.current_url
 
     if current_url == expected_url:
-        _log(logger, logging.INFO, "Already logged in.")
+        _log(logger, logging.INFO, "Already logged in.", gray=True)
         return True
     else:
         _log(logger, logging.INFO, "Need to login.")
@@ -701,7 +716,7 @@ def verify_login(driver, expected_url, max_wait_minutes=30, logger=None):
     return False
 
 
-def attempt_login(driver, expected_url, broadcaster=None, logger=None):
+def attempt_login(driver, expected_url, broadcaster=None, logger=None, profile_name=None):
     """Try automatic MS login using stored credentials and OTP."""
     try:
         try:
@@ -709,9 +724,9 @@ def attempt_login(driver, expected_url, broadcaster=None, logger=None):
             _log(logger, logging.INFO, "Existing session is valid; skipping renew_login.", gray=True)
             return True
         except Exception:
-            _log(logger, logging.INFO, "Session check did not confirm login; attempting renew_login.")
+            _log(logger, logging.INFO, "Session check did not confirm login; attempting renew_login.", gray=True)
 
-        result = renew_login(driver, expected_url, logger=logger)
+        result = renew_login(driver, expected_url, logger=logger, profile_name=profile_name)
         if result:
             verified = verify_login(driver, expected_url, max_wait_minutes=5, logger=logger)
             if verified and broadcaster:
@@ -726,4 +741,17 @@ def attempt_login(driver, expected_url, broadcaster=None, logger=None):
         return False
     
 if __name__ == '__main__':
-    first_time_setup()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="RHUL auto login setup")
+    parser.add_argument("-help", action="help", help="Show this help message and exit")
+    parser.add_argument("-user", "--user", dest="profile", default=None, help="Profile name")
+    args = parser.parse_args()
+    if args.profile:
+        if not profile_exists(args.profile):
+            print("Profile not exist.")
+            raise SystemExit(1)
+        profile_name = args.profile
+    else:
+        profile_name = prompt_select_profile()
+    first_time_setup(profile_name=profile_name)

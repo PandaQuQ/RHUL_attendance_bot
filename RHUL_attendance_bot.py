@@ -12,6 +12,17 @@ import shutil
 import subprocess
 import zoneinfo  # For Python 3.9 and above
 import ntplib  # Used to check system time synchronization
+from app_paths import (
+    get_app_dir,
+    get_profile_dir,
+    get_credentials_path,
+    get_ics_dir,
+    get_chrome_user_data_dir,
+    prompt_select_profile,
+    delete_app_data,
+    profile_exists,
+    list_profiles,
+)
 
 # Create a logger
 logger = logging.getLogger("attendance_bot")
@@ -26,28 +37,33 @@ def check_virtual_environment():
         sys.exit(1)
 
 def check_dependencies():
+    required_packages = [
+        "ics",
+        "rich",
+        "selenium",
+        "webdriver-manager",
+        "pynput",
+        "ntplib",
+        "pyotp",
+    ]
     missing_packages = []
-    required_packages = []
-    requirements_file = 'requirements.txt'
-    if not os.path.exists(requirements_file):
-        logger.error(f"Requirements file '{requirements_file}' not found.")
-        logger.error(f"Please ensure the '{requirements_file}' file is in the same directory as the script.")
-        sys.exit(1)
-    with open(requirements_file, 'r') as f:
-        required_packages = [line.strip() for line in f if line.strip()]
     try:
-        installed_packages_output = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze']).decode()
-    except subprocess.CalledProcessError as e:
-        logger.error("Failed to get installed packages.")
+        try:
+            from importlib.metadata import version as get_version
+        except Exception:  # pragma: no cover
+            from importlib_metadata import version as get_version
+        for pkg in required_packages:
+            try:
+                get_version(pkg)
+            except Exception:
+                missing_packages.append(pkg)
+    except Exception:
+        logger.error("Failed to check installed packages.")
         sys.exit(1)
-    installed_packages = [pkg.lower().split('==')[0] for pkg in installed_packages_output.strip().split('\n') if pkg.strip()]
-    for pkg in required_packages:
-        pkg_name = pkg.lower().split('==')[0]
-        if pkg_name not in installed_packages:
-            missing_packages.append(pkg)
+
     if missing_packages:
         logger.error(f"Missing dependencies: {', '.join(missing_packages)}")
-        logger.error("Please install the dependencies by running 'pip install -r requirements.txt'")
+        logger.error("Please install the dependencies by running 'pip install rhul-attendance-bot' or 'pip install -r requirements.txt'")
         sys.exit(1)
     else:
         logger.info("All dependencies are installed.")
@@ -69,15 +85,41 @@ def check_chrome_installed():
         sys.exit(1)
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="RHUL attendance bot")
+    parser.add_argument("-user", "--user", dest="profile", default=None, help="Start with profile name")
+    parser.add_argument("-clean", action="store_true", help="Delete all local app data")
+    args = parser.parse_args()
+    if args.clean:
+        deleted = delete_app_data()
+        if deleted:
+            print("Local app data removed: ~/.rhul_attendance_bot")
+        else:
+            print("No local app data found to remove.")
+        return
+    profiles_before = list_profiles()
+
+    if args.profile:
+        if not profile_exists(args.profile):
+            print("Profile not exist.")
+            return
+        profile_name = args.profile
+    else:
+        profile_name = prompt_select_profile()
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
     check_virtual_environment()
     check_dependencies()
     check_chrome_installed()
 
+    app_dir = get_app_dir()
+    profile_dir = get_profile_dir(profile_name)
+
     # First-run check: credentials and timetable
-    credentials_path = os.path.join(script_dir, 'credentials.json')
-    ics_folder = os.path.join(script_dir, 'ics')
+    credentials_path = get_credentials_path(profile_name)
+    ics_folder = get_ics_dir(profile_name)
     ics_file = os.path.join(ics_folder, 'student_timetable.ics')
     first_run = False
     # Check credentials
@@ -100,9 +142,21 @@ def main():
     if first_run:
         print('First run detected: running onboarding steps...')
         # Run auto_login.py for first-time login
-        subprocess.run([sys.executable, os.path.join(script_dir, 'auto_login.py')])
+        if profiles_before:
+            subprocess.run([sys.executable, os.path.join(script_dir, 'auto_login.py'), '--user', profile_name])
+        else:
+            subprocess.run([sys.executable, os.path.join(script_dir, 'auto_login.py')])
+            profiles_after = list_profiles()
+            if len(profiles_after) == 1:
+                profile_name = profiles_after[0]
         # Run fetch_ics.py to get timetable
-        subprocess.run([sys.executable, os.path.join(script_dir, 'fetch_ics.py')])
+        subprocess.run([sys.executable, os.path.join(script_dir, 'fetch_ics.py'), '--user', profile_name])
+
+        # Recompute profile paths if profile_name changed during onboarding
+        profile_dir = get_profile_dir(profile_name)
+        credentials_path = get_credentials_path(profile_name)
+        ics_folder = get_ics_dir(profile_name)
+        ics_file = os.path.join(ics_folder, 'student_timetable.ics')
 
     # Now proceed to import the rest of the modules
     import threading
@@ -125,6 +179,7 @@ def main():
     import ntplib  # Used to check system time synchronization
     from auto_login import attempt_login
     from update import check_for_updates
+    from fetch_ics import fetch_ics_url, refresh_calendar, renew_calendar
     from discord_broadcast import DiscordBroadcaster
     from display_manager import DisplayManager
     # Reuse helpers but add custom MFA fallback below
@@ -137,7 +192,7 @@ def main():
     logger.setLevel(logging.DEBUG)
     
     # Create a file handler to log INFO and above messages with timestamps
-    file_handler = logging.FileHandler('automation.log', encoding='utf-8', mode='a')
+    file_handler = logging.FileHandler(os.path.join(profile_dir, 'automation.log'), encoding='utf-8', mode='a')
     file_handler.setLevel(logging.INFO)
     file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(file_formatter)
@@ -193,9 +248,7 @@ def main():
 
     def automated_function(event_time, event_name, upcoming_events):
         global attendance_success_count
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        user_data_dir = os.path.join(script_dir, 'chrome_user_data')
-        os.makedirs(user_data_dir, exist_ok=True)
+        user_data_dir = get_chrome_user_data_dir(profile_name)
 
         driver = initialize_webdriver(user_data_dir)
         if not driver:
@@ -209,7 +262,7 @@ def main():
 
             expected_url = "https://generalssb-prod.ec.royalholloway.ac.uk/BannerExtensibility/customPage/page/RHUL_Attendance_Student"
             # 尝试自动登录（凭证 + OTP），若已登录则快速通过
-            if not attempt_login(driver, expected_url, broadcaster=broadcaster, logger=logger):
+            if not attempt_login(driver, expected_url, broadcaster=broadcaster, logger=logger, profile_name=profile_name):
                 logger.error("Auto-login or verification failed.")
                 return False
 
@@ -356,6 +409,7 @@ def main():
             if exit_event.wait(timeout=min(sleep_duration, 60)):
                 break
 
+
     def listen_for_keypress(upcoming_events, exit_event):
         ctrl_pressed = [False]  # Use a mutable object to share state
 
@@ -375,6 +429,21 @@ def main():
                                 threading.Thread(target=automated_function, args=(next_event_time, next_event_name, upcoming_events), daemon=True).start()
                             else:
                                 logger.warning("No upcoming events to process.")
+                elif key.char == 'c':
+                    if ctrl_pressed[0]:
+                        logger.info("Refreshing calendar (fetching ICS)...", extra={"gray": True})
+                        threading.Thread(
+                            target=renew_calendar,
+                            args=(
+                                upcoming_events,
+                                events_lock,
+                                profile_name,
+                                load_calendar,
+                                get_upcoming_events,
+                                logger,
+                            ),
+                            daemon=True,
+                        ).start()
                 elif key.char == 'q':
                     if ctrl_pressed[0]:
                         logger.info("Exit shortcut pressed. Terminating the script.")
@@ -397,10 +466,7 @@ def main():
 
 
     def get_single_ics_file():
-        ics_folder = os.path.join(script_dir, 'ics')
-        if not os.path.exists(ics_folder):
-            os.makedirs(ics_folder, exist_ok=True)
-            logger.info(f"Created folder '{ics_folder}' as it did not exist.")
+        ics_folder = get_ics_dir(profile_name)
 
         ics_files = [os.path.join(ics_folder, file) for file in os.listdir(ics_folder) if file.endswith('.ics')]
         if len(ics_files) == 0:

@@ -15,3 +15,11 @@ ics/
 # Ignore credentials file
 2fa_config.json
 credentials.json
+
+# Build artifacts
+/build/
+/dist/
+*.egg-info/
+
+# Local app data (if created in repo)
+/.rhul_attendance_bot/

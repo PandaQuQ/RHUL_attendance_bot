@@ -1,0 +1,10 @@
+include README.md
+include README_CN.md
+include LICENSE
+recursive-include assets *.png *.jpg *.jpeg *.gif
+exclude credentials.json
+exclude 2fa_config.json
+exclude automation.log
+recursive-exclude chrome_user_data *
+recursive-exclude ics *
+global-exclude *.pyc

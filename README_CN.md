@@ -32,13 +32,26 @@ RHUL 自动签到脚本通过使用网页自动化来为 Royal Holloway 学生�
 
 在安装前请先确保已安装 Google Chrome：可前往 [下载页面](https://www.google.com/chrome/)（macOS 也可使用 `brew install --cask google-chrome`）。
 
+请从下面两种模式中选择：
+
+1）**推荐：使用 pip 安装**
+2）**源码运行**
+
+### 模式 1：使用 pip 安装（推荐）
+
+```bash
+pip install rhul-attendance-bot
+```
+
+### 模式 2：源码运行
+
 ### 步骤 1：克隆代码仓库
 
 ```bash
 git clone https://github.com/PandaQuQ/RHUL_attendance_bot.git
 ```
 
-### 步骤 2：进入项目目录
+### 步骤 2：进入项目目录（仅源码安装需要）
 
 ```bash
 cd RHUL_attendance_bot
@@ -58,7 +71,7 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 步骤 4：安装依赖项
+### 步骤 4：安装依赖
 
 ```bash
 pip install -r requirements.txt
@@ -94,23 +107,40 @@ pip install -r requirements.txt
 
 3. **运行脚本**：
 
-   #### Windows 系统：
+   #### PyPI 安装：
    ```bash
-   python RHUL_attendance_bot.py
+   rhul-attendance-bot
    ```
 
-   #### macOS/Linux 系统：
+   #### 源码运行：
    ```bash
-   python3 RHUL_attendance_bot.py
+   python RHUL_attendance_bot.py
    ```
 
    > **✅ 自动登录 + 2FA 已完成**
    > 
    > 现在脚本会自动处理微软登录和“验证码” MFA 流程，使用已保存的账号、密码和本地 TOTP 秘钥生成验证码。首次运行按引导完成账号/秘钥绑定；课表将自动下载。
 
-4. **快捷键说明**：
+4. **Profile 选择**：
+
+    - 用 `-user <profile_name>` 指定 Profile，例如：
+       ```bash
+       rhul-attendance-bot -user 用户1
+       ```
+      - 不传 `-user` 且已有 Profile 时，会列出并让你选择。
+      - 没有任何 Profile 时，会自动进入首次引导，完成后将 Profile 文件夹重命名为你的 Profile Nickname。
+
+5. **清理本地数据**：
+
+    - 使用 `-clean` 删除 `~/.rhul_attendance_bot` 下的所有本地数据：
+       ```bash
+       rhul-attendance-bot -clean
+       ```
+
+6. **快捷键说明**：
 
    - **手动触发下一个事件**：按下 `[` 然后按 `]`
+   - **刷新课表（重新获取 ICS）**：按下 `[` 然后按 `c`
    - **退出脚本**：按下 `[` 然后按 `q`
 
 ## 注意事项
@@ -122,7 +152,15 @@ pip install -r requirements.txt
 
 ### 多 Profile 使用
 
-目前未内置原生的多账号切换。如需使用多个账号，请为每个账号准备独立的项目副本（或独立的工作目录/虚拟环境），并分别保存各自的 `credentials.json`、`2fa_config.json` 与 `ics/` 数据。每个目录只运行一个账号实例，避免互相覆盖。
+Profile 数据存放在 `~/.rhul_attendance_bot/profiles/<profile_name>` 下，每个 Profile 独立保存：
+
+- `credentials.json`
+- `2fa_config.json`
+- `ics/`
+- `chrome_user_data/`
+- `automation.log`
+
+运行时用 `-user` 切换 Profile。
 
 > **🔐 安全提示 - 登录会话时长**
 > 
@@ -140,7 +178,7 @@ pip install -r requirements.txt
 ## 常见问题
 
 1. **Chrome WebDriver 问题**：确保使用的是正确版本的 ChromeDriver。脚本使用 `webdriver-manager` 自动管理 ChromeDriver 版本。
-2. **依赖问题**：如果遇到缺少模块的错误，请确保已安装 `requirements.txt` 中列出的所有依赖项。
+2. **依赖问题**：如果遇到缺少模块的错误，请使用 `pip install rhul-attendance-bot` 或从源码执行 `pip install -r requirements.txt`。
 3. **虚拟环境问题**：如果运行脚本时出现问题，请尝试重新设置虚拟环境并重新安装依赖项。
 
 ## TODO
@@ -151,10 +189,11 @@ pip install -r requirements.txt
 - ✅ **读取 2FA 验证码**：使用本地秘钥生成 OTP 并自动填写。
 - ✅ **自动登录**：已实现全自动登录流程。
 - ✅ **Discord Hook Bot**：已支持 Discord Webhook 通知（可选，Webhook 置空即禁用），推送签到状态、登录和生命周期事件
+- ✅ **PyPI 发布**：已发布，可通过 `pip install rhul-attendance-bot` 安装
 
 ## 许可证
 
-本项目采用 MIT 许可证并附加额外条款。有关详细信息，请参阅 [LICENSE](LICENSE) 文件。
+本项目采用 MIT 许可证。有关详细信息，请参阅 [LICENSE](LICENSE) 文件。
 
 ## 鸣谢
 
